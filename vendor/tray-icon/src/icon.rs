@@ -5,18 +5,9 @@
 // taken from https://github.com/rust-windowing/winit/blob/92fdf5ba85f920262a61cee4590f4a11ad5738d1/src/icon.rs
 
 use crate::platform_impl::PlatformIcon;
-use std::{error::Error, fmt, io, mem};
+use std::{error::Error, fmt, io};
 
-#[repr(C)]
-#[derive(Debug)]
-pub(crate) struct Pixel {
-    pub(crate) r: u8,
-    pub(crate) g: u8,
-    pub(crate) b: u8,
-    pub(crate) a: u8,
-}
-
-pub(crate) const PIXEL_SIZE: usize = mem::size_of::<Pixel>();
+pub(crate) const PIXEL_SIZE: usize = 4;
 
 #[derive(Debug)]
 /// An error produced when using [`Icon::from_rgba`] with invalid arguments.

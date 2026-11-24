@@ -6,7 +6,7 @@ release, so the fix below cannot come from a version bump yet.
 
 ## Changes from the crates.io release
 
-All changes are in `src/platform_impl/windows/mod.rs`:
+The Windows patches are in `src/platform_impl/windows/`:
 
 1. Every `NOTIFYICONDATAW` passed to `Shell_NotifyIconW` sets
    `cbSize: size_of::<NOTIFYICONDATAW>()`. The release leaves `cbSize` zeroed,
@@ -14,9 +14,13 @@ All changes are in `src/platform_impl/windows/mod.rs`:
    the first 64 UTF-16 units of the tooltip.
 2. The tooltip copy stops at 127 units instead of 128, so `szTip` always keeps
    its terminating NUL.
+3. RGBA tray icons are converted to bottom-up BGRA and a matching monochrome
+   mask for CreateIcon. This keeps asymmetric icons, including stacked gauges,
+   in the same orientation as the renderer output.
 
 The upstream `dev` branch of tauri-apps/tray-icon already sets `cbSize` at these
 call sites. Drop this vendored copy and the `[patch.crates-io]` entry once a
-tray-icon release that includes the fix is usable by Tauri.
+tray-icon release with all these fixes is usable by Tauri.
 
-Nothing else in this directory differs from the published crate.
+The common icon module also drops the pixel struct that the Windows converter
+previously used.

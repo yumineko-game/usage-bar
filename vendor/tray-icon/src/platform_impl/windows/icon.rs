@@ -4,7 +4,7 @@
 
 // taken from https://github.com/rust-windowing/winit/blob/92fdf5ba85f920262a61cee4590f4a11ad5738d1/src/platform_impl/windows/icon.rs
 
-use std::{fmt, io, mem, path::Path, sync::Arc};
+use std::{fmt, io, path::Path, sync::Arc};
 
 use windows_sys::{
     core::PCWSTR,
@@ -17,24 +17,28 @@ use crate::icon::*;
 
 use super::util;
 
-impl Pixel {
-    fn convert_to_bgra(&mut self) {
-        mem::swap(&mut self.r, &mut self.b);
-    }
-}
-
 impl RgbaIcon {
-    fn into_windows_icon(self) -> Result<WinIcon, BadIcon> {
-        let rgba = self.rgba;
-        let pixel_count = rgba.len() / PIXEL_SIZE;
-        let mut and_mask = Vec::with_capacity(pixel_count);
-        let pixels =
-            unsafe { std::slice::from_raw_parts_mut(rgba.as_ptr() as *mut Pixel, pixel_count) };
-        for pixel in pixels {
-            and_mask.push(pixel.a.wrapping_sub(u8::MAX)); // invert alpha channel
-            pixel.convert_to_bgra();
+    fn into_windows_icon(mut self) -> Result<WinIcon, BadIcon> {
+        if self.width == 0 || self.height == 0 {
+            return Err(BadIcon::OsError(io::ErrorKind::InvalidInput.into()));
         }
-        assert_eq!(and_mask.len(), pixel_count);
+
+        let width = self.width as usize;
+        let row_bytes = width * PIXEL_SIZE;
+        // CreateIcon reads bitmap rows from the bottom. Its one-bit AND mask
+        // uses word-aligned rows and must follow the same order as the BGRA data.
+        let mask_stride = ((width + 15) / 16) * 2;
+        let mut and_mask = vec![0; mask_stride * self.height as usize];
+        let mut bgra = Vec::with_capacity(self.rgba.len());
+        for (y, row) in self.rgba.chunks_exact_mut(row_bytes).rev().enumerate() {
+            for (x, pixel) in row.chunks_exact_mut(PIXEL_SIZE).enumerate() {
+                if pixel[3] == 0 {
+                    and_mask[y * mask_stride + x / 8] |= 0x80 >> (x % 8);
+                }
+                pixel.swap(0, 2);
+            }
+            bgra.extend_from_slice(row);
+        }
         let handle = unsafe {
             CreateIcon(
                 std::ptr::null_mut(),
@@ -43,7 +47,7 @@ impl RgbaIcon {
                 1,
                 (PIXEL_SIZE * 8) as u8,
                 and_mask.as_ptr(),
-                rgba.as_ptr(),
+                bgra.as_ptr(),
             )
         };
         if !handle.is_null() {
