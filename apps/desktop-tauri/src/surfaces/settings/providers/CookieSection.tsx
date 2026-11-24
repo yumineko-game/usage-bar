@@ -80,16 +80,24 @@ export function CookieSection({ providerId, cookieDomain, onChanged }: Props) {
 
   useEffect(() => {
     if (cookieDomain === null) return;
+    let stale = false;
+    setBrowsersLoaded(false);
     listDetectedBrowsers(providerId)
       .then((list) => {
+        if (stale) return;
         setBrowsers(list);
+        setBrowserType((previous) =>
+          list.some((browser) => browser.browserType === previous)
+            ? previous
+            : list[0]?.browserType ?? "",
+        );
         setBrowsersLoaded(true);
-        if (list.length > 0) setBrowserType(list[0].browserType);
       })
       .catch(() => {
         // A failed lookup says nothing about installed browsers, so the
         // empty-state hint stays hidden.
       });
+    return () => { stale = true; };
   }, [cookieDomain, providerId]);
 
   if (cookieDomain === null) return null;

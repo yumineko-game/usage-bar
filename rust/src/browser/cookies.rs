@@ -185,6 +185,7 @@ impl CookieExtractor {
         // Preserve the first ABE error seen so it can be surfaced when no cookies
         // were recovered from any profile of this browser.
         let mut abe_error: Option<CookieError> = None;
+        let mut read_error = None;
 
         for profile in &browser.profiles {
             match Self::extract_profile_cookies(browser, profile, domain) {
@@ -207,16 +208,19 @@ impl CookieExtractor {
                         profile.name,
                         e
                     );
+                    if !matches!(e, CookieError::NotFound(_)) {
+                        read_error.get_or_insert(e);
+                    }
                 }
             }
         }
 
-        // If we obtained no cookies at all and every failure was ABE, surface that
-        // specific error so callers can try alternative browsers or manual import.
+        // If no profile supplied cookies, distinguish a blocked or unreadable
+        // browser from a readable browser with no matching session.
         if all_cookies.is_empty()
-            && let Some(abe_err) = abe_error
+            && let Some(error) = abe_error.or(read_error)
         {
-            return Err(abe_err);
+            return Err(error);
         }
 
         Ok(all_cookies)
@@ -391,6 +395,13 @@ impl CookieExtractor {
             return Err(CookieError::AppBoundEncryption {
                 browsers: vec![browser.browser_type],
             });
+        }
+
+        if cookies.is_empty() && decrypt_failures > 0 {
+            return Err(CookieError::Decryption(format!(
+                "Could not read matching cookies from {}.",
+                browser.browser_type.display_name()
+            )));
         }
 
         Ok(cookies)
@@ -846,6 +857,29 @@ pub fn get_cookie_header_for_domains(domains: &[&str]) -> Result<String, CookieE
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unreadable_brave_profile_reports_an_error_instead_of_an_empty_import() {
+        let root = tempfile::tempdir().unwrap();
+        let profile_path = root.path().join("Default");
+        std::fs::create_dir_all(&profile_path).unwrap();
+        std::fs::write(profile_path.join("Cookies"), "").unwrap();
+        std::fs::write(root.path().join("Local State"), "invalid json").unwrap();
+        let browser = DetectedBrowser {
+            browser_type: BrowserType::Brave,
+            user_data_dir: root.path().to_path_buf(),
+            profiles: vec![BrowserProfile {
+                name: "Default".into(),
+                path: profile_path,
+                is_default: true,
+            }],
+        };
+
+        assert!(matches!(
+            CookieExtractor::extract_for_domain(&browser, "example.com"),
+            Err(CookieError::Decryption(_))
+        ));
+    }
 
     #[test]
     fn request_scope_keeps_host_and_dotted_parent_cookies_only() {

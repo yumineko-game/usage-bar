@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const tauriMocks = vi.hoisted(() => ({
@@ -58,6 +58,35 @@ describe("CookieSection browser detection", () => {
     expect(
       screen.queryByText("NoBrowsersDetectedHint"),
     ).not.toBeInTheDocument();
+  });
+
+  it("ignores an earlier provider's browser list after switching providers", async () => {
+    let finishOldLookup!: (browsers: {
+      browserType: string;
+      displayName: string;
+      profileCount: number;
+    }[]) => void;
+    const oldLookup = new Promise((resolve) => {
+      finishOldLookup = resolve;
+    });
+    tauriMocks.listDetectedBrowsers
+      .mockReturnValueOnce(oldLookup)
+      .mockResolvedValueOnce([
+        { browserType: "brave", displayName: "Brave", profileCount: 1 },
+      ]);
+
+    const { rerender } = renderSection();
+    rerender(<CookieSection providerId="claude" cookieDomain="claude.ai" />);
+    expect(await screen.findByText(/Brave/)).toBeInTheDocument();
+
+    await act(async () => {
+      finishOldLookup([
+        { browserType: "chrome", displayName: "Google Chrome", profileCount: 1 },
+      ]);
+    });
+
+    expect(screen.getByText(/Brave/)).toBeInTheDocument();
+    expect(screen.queryByText(/Google Chrome/)).not.toBeInTheDocument();
   });
 
   it("does not claim no browsers exist when the lookup fails", async () => {
