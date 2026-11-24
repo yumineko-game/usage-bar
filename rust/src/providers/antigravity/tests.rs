@@ -513,6 +513,20 @@ fn parse_process_info_matches_ide_servers_and_the_agy_cli() {
                 Some(54123),
             )),
         ),
+        // Recent desktop builds require host-bridge authentication.
+        (
+            "34564\t\"C:\\Users\\test\\AppData\\Local\\Programs\\Antigravity\\resources\\bin\\language_server.exe\" --override_ide_name antigravity --https_server_port 0 --read_host_bridge_token_from_stdin",
+            Some((Some(34564), ProcessSource::ProtectedDesktop, "", None, None)),
+        ),
+        // A running agy CLI is usable when the desktop API is protected.
+        (
+            "34564\tC:\\Antigravity\\language_server.exe --override_ide_name=antigravity --read_host_bridge_token_from_stdin\n7777\tagy serve",
+            Some((Some(7777), ProcessSource::Cli, "", None, None)),
+        ),
+        (
+            "34564\tC:\\Other\\language_server.exe --override_ide_name other --read_host_bridge_token_from_stdin",
+            None,
+        ),
         // No --csrf_token anywhere: only the agy CLI line matches.
         (
             "7777\tC:\\Users\\test\\AppData\\Local\\agy\\bin\\agy.exe",

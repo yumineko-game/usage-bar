@@ -20,12 +20,14 @@ const DETAIL_ID: &str = "antigravity-live-unavailable";
 const DETAIL_TITLE: &str = "Live usage";
 const DETAIL_PREFIX: &str = "Live Antigravity usage is unavailable; showing offline data.";
 const GENERIC_HINT: &str = "check Diagnostics for per-source details";
+const PROTECTED_DESKTOP_MESSAGE: &str = "The Antigravity app is running. Its local quota API requires desktop authentication. Use the signed-in agy CLI or configure Google OAuth in Auto mode.";
 
 /// Sanitized category of a failed live probe.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum LiveFailureReason {
     /// Neither a desktop language server nor an `agy` CLI was found.
     NotRunning,
+    ProtectedDesktop,
     TimedOut,
     /// The local language server rejected the request (HTTP 401/403).
     SessionExpired,
@@ -55,6 +57,7 @@ impl LiveFailureReason {
     fn text(self) -> String {
         match self {
             Self::NotRunning => AGY_NOT_FOUND_MESSAGE.to_string(),
+            Self::ProtectedDesktop => PROTECTED_DESKTOP_MESSAGE.to_string(),
             Self::TimedOut => "Antigravity quota request timed out.".to_string(),
             Self::SessionExpired => {
                 "Antigravity session expired. Restart Antigravity and retry.".to_string()
@@ -97,6 +100,13 @@ impl LiveFailure {
         Self::new(
             ProviderError::NotInstalled(AGY_NOT_FOUND_MESSAGE.into()),
             LiveFailureReason::NotRunning,
+        )
+    }
+
+    pub(super) fn protected_desktop() -> Self {
+        Self::new(
+            ProviderError::Other(PROTECTED_DESKTOP_MESSAGE.into()),
+            LiveFailureReason::ProtectedDesktop,
         )
     }
 

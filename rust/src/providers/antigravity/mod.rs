@@ -178,6 +178,8 @@ enum ProcessSource {
     Ide,
     /// `agy` CLI language server — no CSRF token required.
     Cli,
+    /// Desktop app whose language server authenticates through its host bridge.
+    ProtectedDesktop,
 }
 
 /// True when `command_line` looks like the `agy` CLI language server process.
@@ -245,12 +247,14 @@ impl AntigravityProvider {
         let ext_csrf_re = flag_re("extension_server_csrf_token");
         let port_re = flag_re("extension_server_port");
         let https_port_re = flag_re("https_server_port");
+        let ide_name_re = flag_re("override_ide_name");
 
         // Prefer desktop IDE/app matches (which carry a --csrf_token) over the
         // tokenless `agy` CLI so the CSRF-protected endpoint is used when both
         // happen to be running. Only fall back to a CLI match when no IDE match
         // is found, mirroring upstream's process-kind precedence.
         let mut cli_match: Option<ProcessInfo> = None;
+        let mut protected_desktop = None;
 
         for line in stdout.lines() {
             // Line is "<pid>\t<command line>"; split off the PID prefix we added so the
@@ -290,9 +294,25 @@ impl AntigravityProvider {
                     source: ProcessSource::Cli,
                 });
             }
+
+            if protected_desktop.is_none()
+                && flag_value(&ide_name_re, line)
+                    .is_some_and(|name| name.trim_matches('"').eq_ignore_ascii_case("antigravity"))
+                && line
+                    .split_ascii_whitespace()
+                    .any(|arg| arg == "--read_host_bridge_token_from_stdin")
+            {
+                protected_desktop = Some(ProcessInfo {
+                    csrf_token: String::new(),
+                    extension_server_csrf_token: None,
+                    extension_port: None,
+                    pid,
+                    source: ProcessSource::ProtectedDesktop,
+                });
+            }
         }
 
-        cli_match
+        cli_match.or(protected_desktop)
     }
 
     /// Find the actual API port by probing the language server's candidate ports.
@@ -408,6 +428,9 @@ impl AntigravityProvider {
         let Some(process_info) = process_info else {
             return Ok(None);
         };
+        if process_info.source == ProcessSource::ProtectedDesktop {
+            return Err(LiveFailure::protected_desktop());
+        }
         let api_port = Self::find_api_port(process_info.extension_port, process_info.pid).await?;
         self.fetch_user_status_at_port(&process_info, api_port)
             .await
@@ -957,8 +980,7 @@ struct ProcessInfo {
     extension_server_csrf_token: Option<String>,
     extension_port: Option<u16>,
     pid: Option<u32>,
-    /// Whether the process is the desktop IDE/app server (CSRF required) or the
-    /// `agy` CLI (no CSRF). See [`ProcessSource`].
+    /// How the runtime exposes its local quota service.
     source: ProcessSource,
 }
 
