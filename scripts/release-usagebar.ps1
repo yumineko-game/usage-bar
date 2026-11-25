@@ -36,6 +36,19 @@ function Get-ReleaseRecord {
     }
 }
 
+function Wait-ReleaseRecord {
+    param([bool]$Draft, [int]$AssetCount = 0)
+    for ($attempt = 1; $attempt -le 8; $attempt++) {
+        $release = Get-ReleaseRecord
+        if ($release -and $release.draft -eq $Draft -and -not $release.prerelease) {
+            $uploaded = @($release.assets | Where-Object { $_.state -eq 'uploaded' -and $_.digest })
+            if ($AssetCount -eq 0 -or $uploaded.Count -eq $AssetCount) { return $release }
+        }
+        if ($attempt -lt 8) { Start-Sleep -Seconds 2 }
+    }
+    throw "GitHub did not return the expected release state for $tag."
+}
+
 function Invoke-SafeWrite {
     param([string]$Kind, [string[]]$Arguments)
     $scope = @('scripts/gh-safe.sh', '--repo', $repository, '--verify-kind', $Kind)
@@ -69,8 +82,7 @@ function Publish-Release {
     Invoke-SafeWrite 'repo' @('git-release-tag', $tag, $commit)
     if (-not $release) {
         Invoke-SafeWrite 'repo' @('release', 'create', $tag, '--verify-tag', '--draft', '--title', "UsageBar $version", '--notes-file', $NotesFile)
-        $release = Get-ReleaseRecord
-        if (-not $release -or -not $release.draft) { throw 'Could not read back the new release draft.' }
+        $release = Wait-ReleaseRecord -Draft $true
     }
     $missing = @()
     foreach ($file in $Files) {
@@ -83,12 +95,10 @@ function Publish-Release {
         }
     }
     if ($missing.Count) { Invoke-SafeWrite 'release' (@('release', 'upload', $tag) + $missing) }
-    $release = Get-ReleaseRecord
-    if (-not $release -or -not $release.draft) { throw 'The release draft changed before publication.' }
+    $release = Wait-ReleaseRecord -Draft $true -AssetCount $Files.Count
     Assert-RemoteAssets $release $Files
     Invoke-SafeWrite 'release' @('release', 'edit', $tag, '--draft=false', '--latest')
-    $release = Get-ReleaseRecord
-    if (-not $release -or $release.draft -or $release.prerelease) { throw 'Could not verify the published stable release.' }
+    $release = Wait-ReleaseRecord -Draft $false -AssetCount $Files.Count
     Assert-RemoteAssets $release $Files
     Write-Host $release.html_url
 }
