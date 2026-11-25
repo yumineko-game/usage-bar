@@ -91,8 +91,6 @@ function setScrollHeight(px: number): void {
 function hookProps(overrides: Partial<TrayPanelLayoutOptions> = {}): TrayPanelLayoutOptions {
   return {
     canMeasure: true,
-    denseOverview: false,
-    detailMode: true,
     layoutKey: "sizing",
     ...overrides,
   };
@@ -275,14 +273,14 @@ describe("useTrayPanelLayout sizing", () => {
     expect(surface.style.maxHeight).toBe("704px");
 
     // Real shrink commits once.
-    await nudgePass(result, 413, "420px"); // → clamp 420 → 525 phys
-    expect(lastResize()).toEqual({ width: 310, height: 420 });
-    expect(surface.style.maxHeight).toBe("420px");
+    await nudgePass(result, 152, "153px"); // → 153 → 191 phys
+    expect(lastResize()).toEqual({ width: 310, height: 153 });
+    expect(surface.style.maxHeight).toBe("153px");
 
     // (5) No blanket absorption: a stable 1-physical-px change still commits.
-    await nudgePass(result, 420, "421px"); // → 421 → 526 phys
-    expect(lastResize()).toEqual({ width: 310, height: 421 });
-    expect(surface.style.maxHeight).toBe("421px");
+    await nudgePass(result, 153, "154px"); // → 154 → 193 phys
+    expect(lastResize()).toEqual({ width: 310, height: 154 });
+    expect(surface.style.maxHeight).toBe("154px");
   }, 30_000); // 8 bounded 3s settling passes + 3s readiness can exceed Vitest's 5s default.
 
   it("reconciles to the applied physical frame after an OS snap (no churn, no cycle)", async () => {
@@ -312,7 +310,7 @@ describe("useTrayPanelLayout sizing", () => {
 
     // Candidate 535 (→669 phys) equals the APPLIED frame while the recorded
     // target says 674: suppress (no setSize/reanchor), adopt the candidate.
-    // The prior frame is 420 (525 phys), 144 px away from 669 — the A↔B
+    // The prior frame is 200 (250 phys), well away from 669 — the A↔B
     // detector cannot fire here.
     await nudgePass(result, 534, "535px"); // → 535 → 669 phys
     expect(windowMocks.setSize.mock.calls.length).toBe(snappedResizes);
@@ -343,7 +341,7 @@ describe("useTrayPanelLayout sizing", () => {
     setScrollHeight(532);
 
     const { result } = renderHook(() =>
-      useTrayPanelLayout(hookProps({ detailMode: false, zoom: 1.5 })),
+      useTrayPanelLayout(hookProps({ zoom: 1.5 })),
     );
     await waitFor(() => expect(result.current.layoutReady).toBe(true), {
       timeout: 3000,

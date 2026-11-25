@@ -328,7 +328,7 @@ fn require_subscription_environment(
     for key in AUTH_OVERRIDES {
         if get(key).is_some_and(|v| !v.is_empty()) {
             return Err(io::Error::other(format!(
-                "{key} overrides Claude subscription login. Unset it and restart Win-CodexBar before switching accounts."
+                "{key} overrides Claude subscription login. Unset it and restart UsageBar before switching accounts."
             )));
         }
     }

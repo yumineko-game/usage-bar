@@ -224,7 +224,6 @@ These controls set the tray panel and the float bar.
 | Panel scale | `tray_scale_percent` (100 to 200, step 5) | 100 |
 | Panel look | `tray_panel_style` (`modern` or `classic`) | `modern` |
 | Panel width | `tray_panel_width` (280 to 560 logical px at 100 % scale; drag a panel edge to change it, double-click the edge to reset) | 310 |
-| Overview layout | `overview_layout` (`detailed`, `compact`) | `detailed` |
 | Show all token accounts | `show_all_token_accounts_in_menu` | off |
 | Stay awake | `stay_awake_enabled` | off |
 | Agent sessions | `agent_sessions_enabled` | off |
@@ -248,7 +247,6 @@ The float bar section is on this pane too. Every control except the first is dis
 | `float_bar_style` | `floating`, `taskbar` | `floating` |
 | `float_bar_opacity` | 30 to 100 | 80 |
 | `float_bar_scale` | 75 to 200 | 100 |
-| `float_bar_show_cost` | on, off | off |
 | `float_bar_show_reset_inline` | on, off | off |
 | `float_bar_show_weekly` (Show Session and Weekly) | on, off | off |
 | `float_bar_dark_text` (Invert Colors) | on, off | off |

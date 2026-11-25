@@ -35,7 +35,7 @@ pub fn get_safe_diagnostics() -> String {
         codexbar::logging::read_log_tail().unwrap_or_else(|| "log file unavailable".to_string());
 
     format!(
-        "CodexBar diagnostics\n\
+        "UsageBar diagnostics\n\
          -------------------\n\
          version: {} (build {})\n\
          os: {}\n\

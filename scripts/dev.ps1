@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Build and run the CodexBar Tauri desktop shell for Windows.
+    Build and run the UsageBar Tauri desktop shell for Windows.
 
 .DESCRIPTION
     Checks that build prerequisites are installed, then builds the Tauri desktop
@@ -12,6 +12,9 @@
 
 .PARAMETER SkipBuild
     Skip the build step and run the last built binary.
+
+.PARAMETER BuildOnly
+    Build the desktop binary and return its path without launching it.
 
 .PARAMETER Verbose
     Enable debug logging via RUST_LOG for the Tauri desktop shell.
@@ -26,7 +29,8 @@
 param(
     [switch]$Release,
     [switch]$SkipBuild,
-    [switch]$Verbose
+    [switch]$Verbose,
+    [switch]$BuildOnly
 )
 
 Set-StrictMode -Version Latest
@@ -34,7 +38,6 @@ $ErrorActionPreference = 'Stop'
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $TauriFrontendDir = Join-Path $RepoRoot "apps\desktop-tauri"
-$TargetDir = Join-Path $RepoRoot "target"
 $DesktopBinaryName = "codexbar-desktop-tauri.exe"
 
 function Get-RustHostTriple {
@@ -53,29 +56,27 @@ function Get-RustHostTriple {
 
 function Get-DesktopBinaryCandidates {
     param(
+        [string]$TargetDirectory,
         [string]$Profile,
         [string]$ConfiguredTarget
     )
 
-    $candidates = @(
-        (Join-Path $TargetDir "$Profile\$DesktopBinaryName")
-    )
-
     if ($ConfiguredTarget) {
-        $candidates += Join-Path $TargetDir "$ConfiguredTarget\$Profile\$DesktopBinaryName"
+        Join-Path $TargetDirectory "$ConfiguredTarget\$Profile\$DesktopBinaryName"
+    } else {
+        Join-Path $TargetDirectory "$Profile\$DesktopBinaryName"
     }
-
-    $candidates += @(
-        (Join-Path $TargetDir "x86_64-pc-windows-msvc\$Profile\$DesktopBinaryName"),
-        (Join-Path $TargetDir "x86_64-pc-windows-gnu\$Profile\$DesktopBinaryName")
-    )
-
-    return $candidates | Select-Object -Unique
+    if ($SkipBuild) {
+        Join-Path $TargetDirectory "$Profile\$DesktopBinaryName"
+        Join-Path $TargetDirectory "x86_64-pc-windows-msvc\$Profile\$DesktopBinaryName"
+        Join-Path $TargetDirectory "x86_64-pc-windows-gnu\$Profile\$DesktopBinaryName"
+    }
 }
 
 # ── Ensure known tool paths are in current session PATH ─────────────────────
 
 $knownPaths = @("$env:USERPROFILE\.cargo\bin", "C:\mingw64\bin")
+if ($env:CARGO_HOME) { $knownPaths += Join-Path $env:CARGO_HOME 'bin' }
 foreach ($p in $knownPaths) {
     if ((Test-Path $p) -and ($env:PATH -notlike "*$p*")) {
         $env:PATH = "$p;$env:PATH"
@@ -109,28 +110,44 @@ if (-not $hasCargo -or ($needsDlltool -and -not $hasDlltool)) {
     exit 1
 }
 
-$pnpmCommand = Get-Command pnpm.cmd -ErrorAction SilentlyContinue
-if (-not $pnpmCommand) {
-    Write-Host "ERROR: pnpm not found." -ForegroundColor Red
-    Write-Host "Install pnpm to build apps/desktop-tauri before running this script." -ForegroundColor Yellow
-    exit 1
-}
+& (Join-Path $PSScriptRoot 'worktree-env.ps1') -RepoRoot $RepoRoot | Out-Host
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
 if (-not $SkipBuild) {
+    $originalPath = $env:PATH
+    $shimDir = $null
     Push-Location $TauriFrontendDir
     try {
-        if ($Release) {
-            Write-Host "Building CodexBar Desktop (release, no bundle)..." -ForegroundColor Cyan
-            & $pnpmCommand.Source run tauri:build
-        } else {
-            Write-Host "Building CodexBar Desktop (debug, no bundle)..." -ForegroundColor Cyan
-            & $pnpmCommand.Source run tauri:build:debug
+        $pnpmCommand = Get-Command pnpm.cmd -ErrorAction SilentlyContinue
+        if (-not $pnpmCommand) {
+            $corepack = Get-Command corepack.cmd -ErrorAction SilentlyContinue
+            if (-not $corepack) { throw 'Install the pinned pnpm or Node.js with Corepack before building.' }
+            # Tauri and package.json both call pnpm by name in child processes.
+            $shimDir = Join-Path ([IO.Path]::GetTempPath()) ('usagebar-pnpm-' + [guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory -Path $shimDir | Out-Null
+            & $corepack.Source enable --install-directory $shimDir pnpm | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw "Corepack exited with code $LASTEXITCODE." }
+            $env:PATH = "$shimDir;$env:PATH"
+            $pnpmCommand = Get-Command pnpm.cmd
         }
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        if ($BuildOnly -or -not (Test-Path -LiteralPath 'node_modules\.bin\tauri.cmd' -PathType Leaf)) {
+            & $pnpmCommand.Source install --frozen-lockfile --prefer-offline | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw "pnpm install exited with code $LASTEXITCODE." }
+        }
+
+        $buildScript = if ($Release) { 'tauri:build' } else { 'tauri:build:debug' }
+        Write-Host 'Building UsageBar (no bundle)...' -ForegroundColor Cyan
+        & $pnpmCommand.Source run $buildScript | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw "UsageBar build exited with code $LASTEXITCODE." }
     } finally {
         Pop-Location
+        $env:PATH = $originalPath
+        if ($shimDir -and (Test-Path -LiteralPath $shimDir -PathType Container)) {
+            Get-ChildItem -LiteralPath $shimDir -File | Remove-Item
+            Remove-Item -LiteralPath $shimDir
+        }
     }
 }
 
@@ -150,9 +167,12 @@ if ($env:CARGO_BUILD_TARGET) {
     }
 }
 
-$candidates = Get-DesktopBinaryCandidates -Profile $profile -ConfiguredTarget $configuredTarget
+$candidates = @(Get-DesktopBinaryCandidates -TargetDirectory $env:CARGO_TARGET_DIR -Profile $profile -ConfiguredTarget $configuredTarget)
+if ($SkipBuild) {
+    $candidates += Get-DesktopBinaryCandidates -TargetDirectory (Join-Path $RepoRoot 'target') -Profile $profile -ConfiguredTarget $configuredTarget
+}
 
-$binary = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+$binary = $candidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
 
 if (-not $binary) {
     Write-Host "ERROR: Binary not found. Searched:" -ForegroundColor Red
@@ -160,6 +180,8 @@ if (-not $binary) {
     Write-Host "Run without -SkipBuild to build first." -ForegroundColor Yellow
     exit 1
 }
+
+if ($BuildOnly) { return $binary }
 
 if ($Verbose) {
     if (-not $env:RUST_LOG) {
@@ -172,5 +194,5 @@ if (-not $env:TAURI_DEV) {
 }
 
 Write-Host ""
-Write-Host "Starting CodexBar Desktop..." -ForegroundColor Green
+Write-Host "Starting UsageBar..." -ForegroundColor Green
 & $binary

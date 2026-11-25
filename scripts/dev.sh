@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and run the CodexBar Tauri desktop shell on Linux / WSL.
+# Build and run the UsageBar Tauri desktop shell on Linux / WSL.
 #
 # Usage:
 #   ./scripts/dev.sh                 # debug build + run
@@ -128,10 +128,10 @@ if [ "$SKIP_BUILD" -eq 0 ]; then
     else
         cd "$TAURI_APP_DIR"
         if [ "$RELEASE" -eq 1 ]; then
-            echo "Building CodexBar Desktop (release, no bundle)..."
+            echo "Building UsageBar (release, no bundle)..."
             pnpm run tauri:build
         else
-            echo "Building CodexBar Desktop (debug, no bundle)..."
+            echo "Building UsageBar (debug, no bundle)..."
             pnpm run tauri:build:debug
         fi
         cd "$REPO_ROOT"
@@ -162,7 +162,7 @@ if [ "$CLI_MODE" -eq 1 ]; then
     echo "Running: codexbar usage -p all"
     RUN_ARGS=(usage -p all)
 else
-    echo "Running: CodexBar Desktop"
+    echo "Running: UsageBar"
 fi
 
 if [ "$VERBOSE" -eq 1 ]; then

@@ -1,4 +1,3 @@
-import { useCallback, useState } from "react";
 import { Field, SettingSelect, SettingToggle, type SettingsControl } from "../components/FormControls";
 import { useDraftNumber } from "../hooks/useDraftNumber";
 import { useLocale } from "../hooks/useLocale";
@@ -90,13 +89,6 @@ export default function FloatBarSettingsSection({ settings, saving, set }: Setti
             aria-label={t("FloatBarSizeAriaLabel")}
           />
         </Field>
-        <SettingToggle
-          ctl={ctl}
-          field="floatBarShowCost"
-          label={t("FloatBarShowCost")}
-          description={t("FloatBarShowCostDescription")}
-          disabled={saving || !settings.floatBarEnabled}
-        />
         <SettingToggle
           ctl={ctl}
           field="floatBarShowResetInline"

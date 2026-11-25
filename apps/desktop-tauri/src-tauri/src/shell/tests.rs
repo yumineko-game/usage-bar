@@ -549,5 +549,5 @@ fn tray_panel_layout_ignores_remembered_size() {
 
     let size = logical_size_from_geometry(SurfaceMode::TrayPanel, &props, Some(stored));
 
-    assert_eq!(size, (310.0, 776.0));
+    assert_eq!(size, (310.0, 200.0));
 }

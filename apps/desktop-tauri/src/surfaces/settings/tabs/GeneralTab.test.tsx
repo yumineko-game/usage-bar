@@ -10,7 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async (command: string) => {
     if (command === "get_app_info") {
       return {
-        name: "CodexBar",
+        name: "UsageBar",
         version: "0.60.3",
         buildNumber: "42",
         updateChannel: "stable",

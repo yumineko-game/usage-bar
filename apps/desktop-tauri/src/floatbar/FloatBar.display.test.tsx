@@ -295,6 +295,7 @@ describe("FloatBar", () => {
         buildBundle(
           {
             ResetsInHoursMinutes: "{} 小时 {} 分钟后重置",
+            DurationHoursMinutes: "{}小时{}分钟",
             TrayResetsDueNow: "现在重置",
           },
           "chinese",
@@ -316,7 +317,7 @@ describe("FloatBar", () => {
       await waitFor(() => {
         const reset = container.querySelector(".floatbar__reset");
         expect(reset?.querySelector(".floatbar__reset-time")).toHaveTextContent(
-          "4h 59m",
+          "4小时59分钟",
         );
         expect(container.querySelector(".floatbar__pill")?.getAttribute("title")).toContain(
           fullResetText,
@@ -338,6 +339,7 @@ describe("FloatBar", () => {
         buildBundle(
           {
             TrayResetsDueNow: fullResetText,
+            PanelNow: "现在",
           },
           "chinese",
         ),
@@ -358,7 +360,7 @@ describe("FloatBar", () => {
       await waitFor(() => {
         const reset = container.querySelector(".floatbar__reset");
         expect(reset?.querySelector(".floatbar__reset-time")).toHaveTextContent(
-          "now",
+          "现在",
         );
         expect(container.querySelector(".floatbar__pill")?.getAttribute("title")).toContain(
           fullResetText,
@@ -375,7 +377,7 @@ describe("FloatBar", () => {
     const now = Date.parse("2024-06-01T00:00:00Z");
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
-      tauriMocks.getLocaleStrings.mockResolvedValue(buildBundle({}, "chinese"));
+      tauriMocks.getLocaleStrings.mockResolvedValue(buildBundle({ DurationMinutes: "{}分钟" }, "chinese"));
       tauriMocks.getCachedProviders.mockResolvedValue([
         snapshot("claude", "Claude", 20, {
           resetsAt: "2024-06-01T00:00:30Z",
@@ -391,7 +393,7 @@ describe("FloatBar", () => {
 
       await waitFor(() => {
         expect(container.querySelector(".floatbar__reset-time")).toHaveTextContent(
-          "1m",
+          "1分钟",
         );
       });
     } finally {
@@ -408,6 +410,7 @@ describe("FloatBar", () => {
         buildBundle(
           {
             ResetsInDaysHours: "{} 天 {} 小时后重置",
+            DurationDaysHours: "{}天{}小时",
           },
           "chinese",
         ),
@@ -428,7 +431,7 @@ describe("FloatBar", () => {
       await waitFor(() => {
         const reset = container.querySelector(".floatbar__reset");
         expect(reset?.querySelector(".floatbar__reset-time")).toHaveTextContent(
-          "1d 2h",
+          "1天2小时",
         );
         expect(container.querySelector(".floatbar__pill")?.getAttribute("title")).toContain(
           fullResetText,

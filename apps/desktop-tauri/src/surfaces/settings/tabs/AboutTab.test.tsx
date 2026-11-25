@@ -8,6 +8,7 @@ const tauriMocks = vi.hoisted(() => ({
 
 const updateMocks = vi.hoisted(() => ({
   checkNow: vi.fn(),
+  installLatest: vi.fn().mockResolvedValue(undefined),
   download: vi.fn(),
   apply: vi.fn(),
   dismiss: vi.fn(),
@@ -79,7 +80,7 @@ describe("AboutTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     tauriMocks.getAppInfo.mockResolvedValue({
-      name: "CodexBar",
+      name: "UsageBar",
       version: "0.30.3",
       buildNumber: "dev",
       updateChannel: "stable",
@@ -98,7 +99,7 @@ describe("AboutTab", () => {
 
     expect(tauriMocks.openExternalUrl).toHaveBeenNthCalledWith(
       1,
-      "https://github.com/nesszer/Win-CodexBar",
+      "https://github.com/yumineko-game/usage-bar",
     );
     expect(tauriMocks.openExternalUrl).toHaveBeenNthCalledWith(
       2,
@@ -125,13 +126,22 @@ describe("AboutTab", () => {
       expect(screen.getByText("ErrorPrefix no browser")).toBeInTheDocument();
     });
   });
+
+  it("starts the GitHub update from one About button", async () => {
+    render(<AboutTab settings={settings} set={vi.fn()} saving={false} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "AboutCheckForUpdates" }));
+
+    expect(updateMocks.installLatest).toHaveBeenCalledOnce();
+    expect(await screen.findByText("AboutUpToDate")).toBeInTheDocument();
+  });
 });
 
 describe("AboutTab acknowledgements", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     tauriMocks.getAppInfo.mockResolvedValue({
-      name: "CodexBar",
+      name: "UsageBar",
       version: "0.70.0",
       buildNumber: "dev",
       updateChannel: "stable",
@@ -188,7 +198,7 @@ describe("AboutTab Mac grouped layout", () => {
 
   it("shows the build date in the hero when the shell reports one", async () => {
     tauriMocks.getAppInfo.mockResolvedValue({
-      name: "CodexBar",
+      name: "UsageBar",
       version: "0.70.0",
       buildNumber: "7",
       buildDate: "2026-10-11",
@@ -203,7 +213,7 @@ describe("AboutTab Mac grouped layout", () => {
 
   it("leaves the build line out when no build date is known", async () => {
     tauriMocks.getAppInfo.mockResolvedValue({
-      name: "CodexBar",
+      name: "UsageBar",
       version: "0.70.0",
       buildNumber: "dev",
       updateChannel: "stable",
@@ -217,7 +227,7 @@ describe("AboutTab Mac grouped layout", () => {
 
   it("groups Updates then Links, with Submit an Issue as a link row", async () => {
     tauriMocks.getAppInfo.mockResolvedValue({
-      name: "CodexBar",
+      name: "UsageBar",
       version: "0.70.0",
       buildNumber: "dev",
       updateChannel: "stable",

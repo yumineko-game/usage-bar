@@ -25,51 +25,85 @@ pub async fn check_for_updates(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<UpdateStatePayload, String> {
-    // Guard: skip if already checking or downloading.
-    {
+    check_update(&app, &state, false).await
+}
+
+#[tauri::command]
+pub async fn install_github_update(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<UpdateStatePayload, String> {
+    check_update(&app, &state, true).await
+}
+
+async fn check_update(
+    app: &tauri::AppHandle,
+    state: &Mutex<AppState>,
+    install: bool,
+) -> Result<UpdateStatePayload, String> {
+    let checking_payload = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         match guard.update_state {
             UpdateState::Checking | UpdateState::Downloading(_) => {
+                guard.install_update_when_ready |= install;
+                return Ok(guard.update_payload());
+            }
+            UpdateState::Ready => {
+                if install {
+                    drop(guard);
+                    install_ready_update(app, state)?;
+                    guard = state.lock().map_err(|e| e.to_string())?;
+                }
                 return Ok(guard.update_payload());
             }
             _ => {}
         }
         guard.update_state = UpdateState::Checking;
+        guard.install_update_when_ready = install;
         guard.update_info = None;
         guard.installer_path = None;
-    }
-
-    let checking_payload = {
-        let guard = state.lock().map_err(|e| e.to_string())?;
         guard.update_payload()
     };
-    events::emit_update_state_changed(&app, &checking_payload);
+    events::emit_update_state_changed(app, &checking_payload);
 
     let settings = codexbar::settings::Settings::load();
 
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        codexbar::updater::check_for_updates_with_channel(settings.update_channel),
+        codexbar::updater::try_check_for_updates(settings.update_channel),
     )
     .await;
 
     let (new_state, new_info) = match result {
-        Ok(Some(info)) => (UpdateState::Available(info.version.clone()), Some(info)),
-        Ok(None) => (UpdateState::Idle, None),
+        Ok(Ok(Some(info))) => (UpdateState::Available(info.version.clone()), Some(info)),
+        Ok(Ok(None)) => (UpdateState::Idle, None),
+        Ok(Err(error)) => (UpdateState::Error(error), None),
         Err(_) => (
             UpdateState::Error("Update check timed out".to_string()),
             None,
         ),
     };
 
-    let payload = {
+    let (payload, download) = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         guard.update_state = new_state;
         guard.update_info = new_info;
         guard.last_update_check_ms = Some(chrono::Utc::now().timestamp_millis());
-        guard.update_payload()
+        let download = guard
+            .update_info
+            .as_ref()
+            .filter(|info| guard.install_update_when_ready && info.supports_auto_download())
+            .cloned();
+        guard.install_update_when_ready = download.is_some();
+        if download.is_some() {
+            guard.update_state = UpdateState::Downloading(0.0);
+        }
+        (guard.update_payload(), download)
     };
-    events::emit_update_state_changed(&app, &payload);
+    events::emit_update_state_changed(app, &payload);
+    if let Some(info) = download {
+        spawn_download_task(app.clone(), info);
+    }
 
     Ok(payload)
 }
@@ -79,64 +113,39 @@ pub async fn download_update(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<UpdateStatePayload, String> {
-    let info = match update_info_for_download(&state)? {
-        DownloadStart::Ready(info) => info,
-        DownloadStart::AlreadyDownloading(payload) => return Ok(payload),
-    };
-
-    if !info.supports_auto_download() {
-        return Err(
-            "This update does not support automatic download. Open the release page instead."
-                .to_string(),
-        );
-    }
-
-    let initial_payload = set_downloading_state(&state)?;
-    events::emit_update_state_changed(&app, &initial_payload);
-    spawn_download_task(app.clone(), info);
-
-    Ok(initial_payload)
-}
-
-enum DownloadStart {
-    Ready(UpdateInfo),
-    AlreadyDownloading(UpdateStatePayload),
-}
-
-fn update_info_for_download(
-    state: &tauri::State<'_, Mutex<AppState>>,
-) -> Result<DownloadStart, String> {
-    let guard = state.lock().map_err(|e| e.to_string())?;
-    match &guard.update_state {
-        UpdateState::Available(_) | UpdateState::Error(_) => {}
-        UpdateState::Downloading(_) => {
-            return Ok(DownloadStart::AlreadyDownloading(guard.update_payload()));
+    let (payload, info) = {
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        match &guard.update_state {
+            UpdateState::Available(_) | UpdateState::Error(_) => {}
+            UpdateState::Downloading(_) => return Ok(guard.update_payload()),
+            _ => return Err("No update available to download".to_string()),
         }
-        _ => return Err("No update available to download".to_string()),
-    }
-    guard
-        .update_info
-        .clone()
-        .map(DownloadStart::Ready)
-        .ok_or("No update information available".to_string())
-}
-
-fn set_downloading_state(
-    state: &tauri::State<'_, Mutex<AppState>>,
-) -> Result<UpdateStatePayload, String> {
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
-    guard.update_state = UpdateState::Downloading(0.0);
-    Ok(guard.update_payload())
+        let info = guard
+            .update_info
+            .as_ref()
+            .filter(|info| info.supports_auto_download())
+            .cloned()
+            .ok_or("No verified installer is available to download")?;
+        guard.update_state = UpdateState::Downloading(0.0);
+        (guard.update_payload(), info)
+    };
+    events::emit_update_state_changed(&app, &payload);
+    spawn_download_task(app, info);
+    Ok(payload)
 }
 
 fn spawn_download_task(app_handle: tauri::AppHandle, info: UpdateInfo) {
     tokio::spawn(async move {
         let (tx, rx) = tokio::sync::watch::channel(codexbar::updater::UpdateState::Available);
         let progress_handle = spawn_download_progress_task(app_handle.clone(), rx);
-        let final_payload = run_download_task(app_handle.clone(), info, tx).await;
-
-        events::emit_update_state_changed(&app_handle, &final_payload);
+        let result =
+            tokio::spawn(async move { codexbar::updater::download_update(&info, tx).await })
+                .await
+                .map_err(|error| format!("Download task failed: {error}"))
+                .and_then(|result| result);
         progress_handle.abort();
+        let _progress_finished = progress_handle.await;
+        finish_download(&app_handle, result);
     });
 }
 
@@ -164,54 +173,60 @@ fn emit_download_progress(app: &tauri::AppHandle, progress: f32) {
     events::emit_update_state_changed(app, &payload);
 }
 
-async fn run_download_task(
-    app: tauri::AppHandle,
-    info: UpdateInfo,
-    tx: tokio::sync::watch::Sender<codexbar::updater::UpdateState>,
-) -> UpdateStatePayload {
-    let download_handle =
-        tokio::spawn(async move { codexbar::updater::download_update(&info, tx).await });
-
-    match download_handle.await {
-        Ok(Ok(path)) => finish_download(&app, UpdateState::Ready, Some(path)),
-        Ok(Err(error)) => finish_download(&app, UpdateState::Error(error), None),
-        Err(join_err) => finish_download(
-            &app,
-            UpdateState::Error(format!("Download task failed: {join_err}")),
-            None,
-        ),
+fn finish_download(app: &tauri::AppHandle, result: Result<std::path::PathBuf, String>) {
+    let state = app.state::<Mutex<AppState>>();
+    let (payload, install) = {
+        let mut guard = state.lock().unwrap();
+        match result {
+            Ok(path) => {
+                guard.update_state = UpdateState::Ready;
+                guard.installer_path = Some(path);
+            }
+            Err(error) => guard.update_state = UpdateState::Error(error),
+        }
+        let install =
+            std::mem::take(&mut guard.install_update_when_ready) && guard.installer_path.is_some();
+        (guard.update_payload(), install)
+    };
+    if install {
+        let _install_result = install_ready_update(app, &state);
+    } else {
+        events::emit_update_state_changed(app, &payload);
     }
 }
 
-fn finish_download(
-    app: &tauri::AppHandle,
-    update_state: UpdateState,
-    installer_path: Option<std::path::PathBuf>,
-) -> UpdateStatePayload {
-    let st = app.state::<Mutex<AppState>>();
-    let mut guard = st.lock().unwrap();
-    guard.update_state = update_state;
-    guard.installer_path = installer_path;
-    guard.update_payload()
+#[tauri::command]
+pub fn apply_update(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    install_ready_update(&app, &state)
 }
 
-#[tauri::command]
-pub fn apply_update(state: tauri::State<'_, Mutex<AppState>>) -> Result<(), String> {
-    apply_ready_update(&state)
+fn install_ready_update(app: &tauri::AppHandle, state: &Mutex<AppState>) -> Result<(), String> {
+    if let Err(error) = apply_ready_update(state) {
+        let payload = {
+            let mut guard = state.lock().map_err(|e| e.to_string())?;
+            guard.update_state = UpdateState::Error(error);
+            guard.update_payload()
+        };
+        events::emit_update_state_changed(app, &payload);
+    }
+    Ok(())
 }
 
 pub(crate) fn apply_ready_update(state: &Mutex<AppState>) -> Result<(), String> {
     let (path, expected_sha256) = {
-        let guard = state.lock().map_err(|e| e.to_string())?;
-        let path = guard
-            .installer_path
-            .clone()
-            .ok_or("No downloaded update available to apply")?;
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
         let expected_sha256 = guard
             .update_info
             .as_ref()
             .and_then(|info| info.expected_sha256.clone())
             .ok_or("Missing SHA256 digest for downloaded update")?;
+        let path = guard
+            .installer_path
+            .take()
+            .ok_or("No downloaded update available to apply")?;
         (path, expected_sha256)
     };
     codexbar::updater::verify_installer_hash(&path, &expected_sha256)?;
@@ -225,6 +240,12 @@ pub fn dismiss_update(
 ) -> Result<UpdateStatePayload, String> {
     let payload = {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
+        if matches!(
+            guard.update_state,
+            UpdateState::Checking | UpdateState::Downloading(_)
+        ) {
+            return Ok(guard.update_payload());
+        }
         guard.update_state = UpdateState::Idle;
         guard.update_info = None;
         guard.installer_path = None;

@@ -1,5 +1,6 @@
 import englishFtl from "../../../../rust/src/locale/en-US.ftl?raw";
 import ukFtl from "../../../../rust/src/locale/uk-UA.ftl?raw";
+import japaneseFtl from "../../../../rust/src/locale/ja-JP.ftl?raw";
 import { ALL_LOCALE_KEYS } from "../i18n/keys";
 import type { LanguageOption, LocaleStrings } from "../types/bridge";
 
@@ -46,6 +47,10 @@ export function englishLocaleStrings(overrides: Record<string, string> = {}): Lo
   }
   if (Object.keys(overrides).length === 0) return cached;
   return { ...cached, entries: { ...cached.entries, ...overrides } };
+}
+
+export function japaneseLocaleStrings(): LocaleStrings {
+  return { language: "japanese", entries: parseFtlEntries(japaneseFtl) };
 }
 
 export const PROOF_LANGUAGES: LanguageOption[] = [

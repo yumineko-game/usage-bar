@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { useLocale } from "../hooks/useLocale";
 import type { TrayPanelStyle } from "../types/bridge";
 
@@ -113,42 +113,47 @@ export default function MenuSurface({
       <div className="menu-surface__body">{children}</div>
       {groups.length > 0 && (
         <nav className="menu-surface__footer" aria-label={t("PanelMenu")}>
-          {groups.map((group, index) => [
-            ...(statusLine !== null && index === groups.length - 1
-              ? [
-                  index === 0 && <div key="sep-status" className="menu-surface__footer-sep" />,
-                  <p key="status" className="menu-surface__footer-note">
-                    {statusLine}
-                  </p>,
-                ]
-              : []),
-            <div key={`sep-${group[0].id}`} className="menu-surface__footer-sep" />,
-            ...group.map((row) => {
-              const icon =
-                variant === "modern" && !MODERN_ICON_ROWS.has(row.id) ? null : ROW_ICONS[row.id];
-              return (
-                <button
-                  key={row.id}
-                  type="button"
-                  className={`menu-surface__footer-row${row.id === "refresh" ? " menu-surface__footer-row--refresh" : ""}`}
-                  aria-keyshortcuts={row.shortcut?.replace("Ctrl+", "Control+")}
-                  onClick={row.onClick}
-                >
-                  {icon && (
-                    <span className="menu-surface__footer-icon" aria-hidden>
-                      {icon}
-                    </span>
-                  )}
-                  <span>{row.label}</span>
-                  {row.shortcut && (
-                    <span className="menu-surface__footer-shortcut" aria-hidden>
-                      {row.shortcut}
-                    </span>
-                  )}
-                </button>
-              );
-            }),
-          ])}
+          {groups.map((group, index) => {
+            const appActions = index === groups.length - 1;
+            return (
+              <Fragment key={group[0].id}>
+                {statusLine !== null && appActions && (
+                  <>
+                    {index === 0 && <div className="menu-surface__footer-sep" />}
+                    <p className="menu-surface__footer-note">{statusLine}</p>
+                  </>
+                )}
+                <div className="menu-surface__footer-sep" />
+                <div className={appActions ? "menu-surface__footer-actions" : undefined}>
+                  {group.map((row) => {
+                    const icon =
+                      variant === "modern" && !MODERN_ICON_ROWS.has(row.id) ? null : ROW_ICONS[row.id];
+                    return (
+                      <button
+                        key={row.id}
+                        type="button"
+                        className={`menu-surface__footer-row${row.id === "refresh" ? " menu-surface__footer-row--refresh" : ""}`}
+                        aria-keyshortcuts={row.shortcut?.replace("Ctrl+", "Control+")}
+                        onClick={row.onClick}
+                      >
+                        {icon && (
+                          <span className="menu-surface__footer-icon" aria-hidden>
+                            {icon}
+                          </span>
+                        )}
+                        <span className="menu-surface__footer-label" title={row.label}>{row.label}</span>
+                        {row.shortcut && (
+                          <span className="menu-surface__footer-shortcut" aria-hidden>
+                            {row.shortcut}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Fragment>
+            );
+          })}
         </nav>
       )}
     </div>

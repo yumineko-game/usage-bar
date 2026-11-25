@@ -28,6 +28,6 @@ describe("FloatBar settings", () => {
       <FloatBarSettingsSection settings={settings} saving={false} set={vi.fn()} />,
     );
 
-    expect(screen.getAllByText("FloatBarShowCost")).toHaveLength(1);
+    expect(screen.queryByText("FloatBarShowCost")).not.toBeInTheDocument();
   });
 });

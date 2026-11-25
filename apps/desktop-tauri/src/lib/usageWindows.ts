@@ -2,6 +2,19 @@ import type {
   ProviderUsageSnapshot,
   RateWindowSnapshot,
 } from "../types/bridge";
+import { SUPPORTED_CURRENCIES } from "./currency";
+
+const CURRENCY_AMOUNT = new RegExp(
+  `(?:\\b(?:${SUPPORTED_CURRENCIES.join("|")})\\s*[+-]?\\d|\\d\\s*(?:${SUPPORTED_CURRENCIES.join("|")})\\b)`,
+);
+
+/** Provider snapshots sometimes use their description field for a money amount. */
+export function quotaOnlyDescription(description: string | null | undefined): string | null {
+  const text = description?.trim();
+  return text && !/\p{Sc}\s*[+-]?\d|\d\s*\p{Sc}/u.test(text) && !CURRENCY_AMOUNT.test(text)
+    ? text
+    : null;
+}
 
 /** Selects the automatic window for surfaces rendering exactly one primary/secondary usage metric. */
 export function selectSingleMetricUsageWindow(

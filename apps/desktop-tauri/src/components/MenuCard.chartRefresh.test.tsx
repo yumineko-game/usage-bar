@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const tauriMocks = vi.hoisted(() => ({
@@ -65,31 +65,11 @@ describe("MenuCard chart refresh", () => {
     });
   });
 
-  it("re-reads chart data after same-day usage updates and across midnight", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    try {
-      vi.setSystemTime(new Date(2026, 9, 7, 23, 0, 0));
-      const { rerender } = render(card("2026-10-07T23:00:00Z"));
-      await waitFor(() => expect(tauriMocks.getProviderChartData).toHaveBeenCalledTimes(1));
-
-      // A plain rerender must not start a second scan.
-      rerender(card("2026-10-07T23:00:00Z"));
-      expect(tauriMocks.getProviderChartData).toHaveBeenCalledTimes(1);
-      // A refresh that only moves the timestamp must not rescan either.
-      vi.setSystemTime(new Date(2026, 9, 7, 23, 15, 0));
-      rerender(card("2026-10-07T23:15:00Z"));
-      expect(tauriMocks.getProviderChartData).toHaveBeenCalledTimes(1);
-      // Published usage changes must reach the chart on the same day too.
-      vi.setSystemTime(new Date(2026, 9, 7, 23, 30, 0));
-      rerender(card("2026-10-07T23:30:00Z", 12));
-      await waitFor(() => expect(tauriMocks.getProviderChartData).toHaveBeenCalledTimes(2));
-
-      // The next update lands after local midnight; Today must be re-read.
-      vi.setSystemTime(new Date(2026, 9, 8, 0, 5, 0));
-      rerender(card("2026-10-08T00:05:00Z", 12));
-      await waitFor(() => expect(tauriMocks.getProviderChartData).toHaveBeenCalledTimes(3));
-    } finally {
-      vi.useRealTimers();
-    }
+  it("renders updated quota without reading chart data", async () => {
+    const { rerender } = render(card("2026-10-07T23:00:00Z"));
+    await screen.findByRole("progressbar");
+    rerender(card("2026-10-07T23:30:00Z", 12));
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "88");
+    expect(tauriMocks.getProviderChartData).not.toHaveBeenCalled();
   });
 });

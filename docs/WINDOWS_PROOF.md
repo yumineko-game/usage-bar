@@ -11,7 +11,7 @@ Unit tests and `scripts/local-check.ps1` don't prove tray, Settings, float bar, 
    ```
 
    Or run `.\scripts\dev.ps1`. A binary built before the change proves nothing.
-2. **Close CodexBar.** The app uses the single-instance plugin, so a new launch can hand off to an old process that is still running.
+2. **Close UsageBar.** The app uses the single-instance plugin, so a new launch can hand off to an old process that is still running.
 3. **Launch in proof mode.** Set `CODEXBAR_PROOF_MODE` before you start the new binary. See [Proof mode](#proof-mode).
 4. **Drive the window in the background.** Use CDP for webview controls and cua-driver for native checks. See [Drive the app](#drive-the-app).
 5. **Check what you can see**, not only exit codes. For example: pixels, the window list, a toggle's checked state, the persisted setting, the theme under `auto`, or whether the float bar window exists.
@@ -119,7 +119,7 @@ The document holds `generation` (1 for the first write in a process, then +1 per
 }
 ```
 
-`proof_activate_tray_item` runs the handler a native click on a row would run. Call it through the Tauri bridge from a CDP session attached to a CodexBar page target (found by URL, never the first target):
+`proof_activate_tray_item` runs the handler a native click on a row would run. Call it through the Tauri bridge from a CDP session attached to a UsageBar page target (found by URL, never the first target):
 
 ```js
 await window.__TAURI_INTERNALS__.invoke('proof_activate_tray_item', { id: 'toggle_float_bar' });
@@ -194,11 +194,11 @@ CDP screenshots are not proof.
 
 ## What to check after an install
 
-Install the build, start **CodexBar**, and walk through this list.
+Install the build, start **UsageBar**, and walk through this list.
 
 1. **Tray icon.** The icon appears in the notification area. On first run you may need to turn it on under taskbar settings.
 2. **Left-click the tray icon.** The tray panel flyout opens near the tray, on the monitor that holds the taskbar.
-3. **Right-click the tray icon.** The native menu opens. From top to bottom it has the account submenus (Codex, Claude Code and Grok), the provider status rows, **Refresh All**, **Pop Out Dashboard**, **Show Float Bar**, **Providers**, **Settings...**, **Check for Updates**, **About CodexBar** and **Quit**.
+3. **Right-click the tray icon.** The native menu opens. From top to bottom it has the account submenus (Codex, Claude Code and Grok), the provider status rows, **Refresh All**, **Pop Out Dashboard**, **Show Float Bar**, **Providers**, **Settings...**, **Check for Updates**, **About UsageBar** and **Quit**.
 4. **Settings.** Settings opens from the tray menu and from the gear in the tray panel. Every sidebar pane opens.
 5. **Theme.** In General, switch the theme between Automatic, Light and Dark. The open windows repaint. Automatic follows the Windows color mode.
 6. **Global shortcut.** In General > Keyboard, record a shortcut, for example `Ctrl+Shift+K`. The shortcut opens and closes the tray panel from any app.

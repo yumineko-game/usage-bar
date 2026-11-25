@@ -121,7 +121,7 @@ export function setupTrayPanelTests() {
       buildBundle({
         ActionRefresh: "Refresh",
         OverviewSpendProviderCoverage: "{} of {} providers have spend",
-        MenuAbout: "About CodexBar",
+        MenuAbout: "About UsageBar",
         MenuQuit: "Quit",
         MenuSettings: "Settings...",
         ActionUsageDashboard: "Usage Dashboard",

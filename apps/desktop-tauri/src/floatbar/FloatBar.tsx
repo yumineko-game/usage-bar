@@ -10,22 +10,20 @@ import {
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useFormattedResetTime } from "../hooks/useFormattedResetTime";
 import { useTauriEvent } from "../hooks/useTauriEvent";
-import { useCurrency } from "../hooks/CurrencyProvider";
 import { useLocale } from "../hooks/useLocale";
 import { useProviders } from "../hooks/useProviders";
 import {
-  getProviderLocalUsageSummary,
   getSettingsSnapshot,
   refreshProvidersIfStale,
 } from "../lib/tauri";
 import { ProviderIcon } from "../components/providers/ProviderIcon";
 import { brandColorOnDark, getProviderIcon } from "../components/providers/providerIcons";
-import { costPeriodShortLabel } from "../lib/costPeriod";
 import { describeProviderState } from "../lib/providerState";
-import { resetDescriptionFallback, windowDetailText } from "../lib/usageWindows";
+import { quotaOnlyDescription, resetDescriptionFallback } from "../lib/usageWindows";
 import { localizeProviderText } from "../lib/providerText";
 import {
   type MetricLane,
+  metricResetText,
   quotaWarningWindowForLane,
   SESSION_MINUTES,
   WEEK_MINUTES,
@@ -33,10 +31,8 @@ import {
 import { type QuotaWarningSettings, resolveQuotaWarning } from "../lib/quotaWarnings";
 import type {
   BootstrapState,
-  ProviderLocalUsageSummary,
   ProviderUsageSnapshot,
   RateWindowSnapshot,
-  SettingsSnapshot,
 } from "../types/bridge";
 import { FLOAT_BAR_CONFIG_CHANGED_EVENT, resizeFloatBar } from "./api";
 import "./FloatBar.css";
@@ -95,123 +91,16 @@ function ResetIcon({ size }: { size: number }) {
 
 function inlineResetTime(
   resetText: string,
-  resetsAt: string | null,
+  rateWindow: RateWindowSnapshot,
   relative: boolean,
+  t: ReturnType<typeof useLocale>["t"],
 ): string {
-  if (relative && resetsAt) {
-    const target = Date.parse(resetsAt);
-    if (!Number.isNaN(target)) {
-      const diffMs = target - Date.now();
-      if (diffMs <= 0) return "now";
-
-      const totalMinutes = Math.max(1, Math.floor(diffMs / 60_000));
-      const days = Math.floor(totalMinutes / 1440);
-      const hours = Math.floor((totalMinutes % 1440) / 60);
-      const minutes = totalMinutes % 60;
-      if (days > 0) return `${days}d ${hours}h`;
-      if (hours > 0) return `${hours}h ${minutes}m`;
-      return `${minutes}m`;
-    }
+  if (rateWindow.resetsAt && Number.isFinite(Date.parse(rateWindow.resetsAt))) {
+    return metricResetText(rateWindow, relative, Date.now(), t, true) ?? resetText;
   }
-
-  const normalized = resetText.trim();
-  if (/^reset(?:s|ting)?(?:\s+due)?\s*(?:now)?$/i.test(normalized)) {
-    return "now";
-  }
-  return normalized
-    .replace(/^resets?\s+in\s+/i, "")
-    .replace(/^resets?\s+/i, "")
-    .trim();
+  return resetText;
 }
 
-type FloatBarCostSummary = {
-  key: string;
-  providerId: string;
-  displayName: string;
-  todayCost: number | null;
-  /** Cost over the selected History window. */
-  periodCost: number | null;
-  /** Raw History window `periodCost` covers. */
-  period: string;
-};
-
-type FloatBarCostTarget = {
-  key: string;
-  providerId: string;
-  displayName: string;
-};
-
-function providerCostKey(provider: ProviderUsageSnapshot): string {
-  return `${provider.providerId}:${provider.accountEmail ?? ""}`;
-}
-
-function hasLocalCost(summary: ProviderLocalUsageSummary | null): summary is ProviderLocalUsageSummary {
-  return summary?.todayCost != null || summary?.periodCost != null;
-}
-
-function CostPill({
-  summary,
-  scale,
-  todayLabel,
-  periodLabel,
-  estimateLabel,
-}: {
-  summary: FloatBarCostSummary;
-  scale: number;
-  todayLabel: string;
-  periodLabel: string;
-  estimateLabel: string;
-}) {
-  const { format } = useCurrency();
-  const today = summary.todayCost == null ? null : format(summary.todayCost, "USD");
-  const periodCost = summary.periodCost == null ? null : format(summary.periodCost, "USD");
-  const iconSize = Math.round(10 * scale);
-  const brand = getProviderIcon(summary.providerId).brandColor;
-  const title = [
-    today ? `${todayLabel} ${today}` : null,
-    periodCost ? `${periodLabel} ${periodCost}` : null,
-  ]
-    .filter(Boolean)
-    .join(" / ");
-
-  return (
-    <div
-      className="floatbar__cost-pill"
-      title={`${summary.displayName}: ${title} (${estimateLabel})`}
-      data-tauri-drag-region
-      style={brandStyle(brand)}
-    >
-      <span className="floatbar__provider-icon" data-tauri-drag-region>
-        <ProviderIcon providerId={summary.providerId} size={iconSize} />
-      </span>
-      <span className="floatbar__cost-items" data-tauri-drag-region>
-        {today && (
-          <span className="floatbar__cost-item" data-tauri-drag-region>
-            <span className="floatbar__cost-label" data-tauri-drag-region>
-              {todayLabel}
-            </span>
-            <span className="floatbar__cost-value" data-tauri-drag-region>
-              {today}
-            </span>
-          </span>
-        )}
-        {periodCost && (
-          <span className="floatbar__cost-item" data-tauri-drag-region>
-            <span className="floatbar__cost-label" data-tauri-drag-region>
-              {periodLabel}
-            </span>
-            <span className="floatbar__cost-value" data-tauri-drag-region>
-              {periodCost}
-            </span>
-          </span>
-        )}
-      </span>
-      <span className="floatbar__cost-estimate" data-tauri-drag-region>
-        {estimateLabel}
-      </span>
-    </div>
-  );
-}
 /** Pill border variables: the brand, plus a lifted tint for near-black brands on the dark glass. */
 function brandStyle(brand: string): CSSProperties {
   const onDark = brandColorOnDark(brand);
@@ -283,7 +172,7 @@ function metricLabel(
   t: ReturnType<typeof useLocale>["t"],
 ): string {
   if (rateWindow.isInformational === true) {
-    return localizeProviderText(rateWindow.resetDescription?.trim(), t) || "—";
+    return localizeProviderText(quotaOnlyDescription(rateWindow.resetDescription), t) || "—";
   }
   const percent = showAsUsed ? rateWindow.usedPercent : rateWindow.remainingPercent;
   return `${Math.round(Math.max(0, Math.min(100, percent)))}%`;
@@ -297,7 +186,7 @@ function useWindowResetText(
   const informational = rateWindow?.isInformational === true;
   return useFormattedResetTime(
     rateWindow?.resetsAt ?? null,
-    rateWindow && !informational ? resetDescriptionFallback(rateWindow) : null,
+    rateWindow && !informational ? quotaOnlyDescription(resetDescriptionFallback(rateWindow)) : null,
     relative,
   );
 }
@@ -321,12 +210,13 @@ function MetricSegment({
   /** Set while the provider is in an error state; replaces the percentage. */
   problemLabel: string | null;
 }) {
+  const { t } = useLocale();
   // Only percentages size the warning placeholder; informational text would
   // widen the pill after an error.
   const lastPercentageLabel = useRef("0%");
   if (!problemLabel && rateWindow.isInformational !== true) lastPercentageLabel.current = label;
   const inlineReset = resetText
-    ? inlineResetTime(resetText, rateWindow.resetsAt, resetRelative)
+    ? inlineResetTime(resetText, rateWindow, resetRelative, t)
     : null;
 
   return (
@@ -416,12 +306,11 @@ function ProviderPill({
     : metrics
         .map((metric, index) => {
           const resetText = resetTexts[index];
-          const detailText = localizeProviderText(windowDetailText(metric.window), t) || null;
           const head =
             metric.window.isInformational === true
               ? `${provider.displayName}: ${labels[index]}`
               : `${provider.displayName}: ${labels[index]} ${displaySuffix}`;
-          return [head, resetText, detailText].filter(Boolean).join("\n");
+          return [head, resetText].filter(Boolean).join("\n");
         })
         .join("\n");
 
@@ -491,7 +380,6 @@ export default function FloatBar({ state }: { state: BootstrapState }) {
     setSettingsSeed(state.settings);
     setSettings(state.settings);
   }
-  const [localCosts, setLocalCosts] = useState<Record<string, FloatBarCostSummary>>({});
 
   // The detached floatbar should keep usage fresh, but it must not open or
   // focus any other surface. Refresh data only; provider-updated events feed
@@ -522,7 +410,6 @@ export default function FloatBar({ state }: { state: BootstrapState }) {
   const scale = Math.max(0.75, Math.min(2, settings.floatBarScale / 100));
   const showResetInline = settings.floatBarShowResetInline;
   const showWeekly = settings.floatBarShowWeekly;
-  const showCost = settings.floatBarShowCost;
   const visible = useMemo(() => {
     const enabled = new Set(settings.enabledProviders);
     let list = providers.filter((p) => enabled.has(p.providerId));
@@ -536,69 +423,6 @@ export default function FloatBar({ state }: { state: BootstrapState }) {
     );
   }, [providers, settings.enabledProviders, filterIds]);
 
-  const visibleCostTargets = useMemo<FloatBarCostTarget[]>(
-    () =>
-      showCost
-        ? visible.map((provider) => ({
-            key: providerCostKey(provider),
-            providerId: provider.providerId,
-            displayName: provider.displayName,
-          }))
-        : [],
-    [showCost, visible],
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    const targets = visibleCostTargets;
-
-    if (targets.length === 0) {
-      setLocalCosts({});
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    Promise.allSettled(
-      targets.map(async (target) => {
-        const localUsage = await getProviderLocalUsageSummary(target.providerId);
-        if (!hasLocalCost(localUsage)) return null;
-        return {
-          key: target.key,
-          providerId: target.providerId,
-          displayName: target.displayName,
-          todayCost: localUsage.todayCost,
-          periodCost: localUsage.periodCost,
-          period: localUsage.reportingPeriod,
-        } satisfies FloatBarCostSummary;
-      }),
-    )
-      .then((results) => {
-        if (cancelled) return;
-        const next: Record<string, FloatBarCostSummary> = {};
-        for (const result of results) {
-          if (result.status === "fulfilled" && result.value) {
-            next[result.value.key] = result.value;
-          }
-        }
-        setLocalCosts(next);
-      })
-      .catch(() => {
-        if (!cancelled) setLocalCosts({});
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // A History window or "Track costs" change re-reads the local usage summaries.
-  }, [visibleCostTargets, settings.costReportingPeriod, settings.costUsageEnabled]);
-
-  const visibleCosts = visible
-    .map((provider) => localCosts[providerCostKey(provider)])
-    .filter((summary): summary is FloatBarCostSummary => Boolean(summary));
-  const visibleCostValuesKey = visibleCosts
-    .map((summary) => `${summary.key}:${summary.todayCost ?? ""}:${summary.period ?? ""}:${summary.periodCost ?? ""}`)
-    .join("|");
   // Keep the native floatbar window fitted when late data/fonts/icons change layout.
   const lastResizeRef = useRef<{ w: number; h: number } | null>(null);
   const resizeRafRef = useRef<number | null>(null);
@@ -632,7 +456,6 @@ export default function FloatBar({ state }: { state: BootstrapState }) {
   }, [
     resizeToContent,
     visible.length,
-    visibleCostValuesKey,
     orientation,
     style,
     scale,
@@ -686,35 +509,21 @@ export default function FloatBar({ state }: { state: BootstrapState }) {
         <div className="floatbar__empty" data-tauri-drag-region>
           {t("FloatBarNoProviders")}
         </div>
-      ) : (
-        <>
-          {visible.map((p) => (
-            <ProviderPill
-              key={providerCostKey(p)}
-              provider={p}
-              thresholds={settings}
-              showAsUsed={settings.showAsUsed}
-              scale={scale}
-              showResetInline={showResetInline}
-              showWeekly={showWeekly}
-              resetRelative={settings.resetTimeRelative}
-              usedSuffix={t("PanelUsedSuffix")}
-              remainingSuffix={t("FloatBarRemainingSuffix")}
-              stateLabel={t(describeProviderState(p.errorState).labelKey)}
-            />
-          ))}
-          {visibleCosts.map((summary) => (
-            <CostPill
-              key={`cost:${summary.key}`}
-              summary={summary}
-              scale={scale}
-              todayLabel={t("PanelToday")}
-              periodLabel={costPeriodShortLabel(summary.period, t)}
-              estimateLabel={t("OverviewSpendEstimate")}
-            />
-          ))}
-        </>
-      )}
+      ) : visible.map((p) => (
+        <ProviderPill
+          key={p.providerId}
+          provider={p}
+          thresholds={settings}
+          showAsUsed={settings.showAsUsed}
+          scale={scale}
+          showResetInline={showResetInline}
+          showWeekly={showWeekly}
+          resetRelative={settings.resetTimeRelative}
+          usedSuffix={t("PanelUsedSuffix")}
+          remainingSuffix={t("FloatBarRemainingSuffix")}
+          stateLabel={t(describeProviderState(p.errorState).labelKey)}
+        />
+      ))}
     </div>
   );
 }

@@ -9,6 +9,14 @@ export function localizeWindowLabel(
   windowId?: string,
 ): string {
   const normalized = raw?.trim().toLowerCase();
+  if (language === "japanese") {
+    if (windowMinutes === 300 && (normalized === "session" || normalized === "session (5h)")) {
+      return t("WindowLabelHours").replace("{}", "5").replace(/ /g, "");
+    }
+    if (normalized === "weekly" || (normalized === "session" && windowMinutes === 10_080)) {
+      return `1${t("ProviderWeeklyLabel")}`;
+    }
+  }
   if (windowId?.startsWith("claude-weekly-scoped-")) {
     const modelName = raw?.trim().replace(/\s+only\s*$/i, "").trim();
     const template = t("ClaudeScopedWeeklyLabel");

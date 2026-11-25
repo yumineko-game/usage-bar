@@ -1,4 +1,4 @@
-#define MyAppName "CodexBar"
+#define MyAppName "UsageBar"
 #ifndef AppVersion
   #define AppVersion "0.0.0-dev"
 #endif
@@ -9,7 +9,7 @@
   #define OutputDir "..\\target\\installer"
 #endif
 #ifndef OutputBaseFilename
-  #define OutputBaseFilename "CodexBar-" + AppVersion + "-Setup"
+  #define OutputBaseFilename MyAppName + "-" + AppVersion + "-Setup"
 #endif
 #ifndef WebView2BootstrapperPath
   #define WebView2BootstrapperPath "..\\target\\installer-deps\\MicrosoftEdgeWebview2Setup.exe"
@@ -21,11 +21,11 @@ AppName={#MyAppName}
 AppVersion={#AppVersion}
 AppVerName={#MyAppName} {#AppVersion}
 AppPublisher=CodexBar Contributors
-AppPublisherURL=https://github.com/Finesssee/Win-CodexBar
-AppSupportURL=https://github.com/Finesssee/Win-CodexBar/issues
-AppUpdatesURL=https://github.com/Finesssee/Win-CodexBar/releases
-DefaultDirName={localappdata}\Programs\CodexBar
-DefaultGroupName=CodexBar
+AppPublisherURL=https://github.com/yumineko-game/usage-bar
+AppSupportURL=https://github.com/nesszer/Win-CodexBar/issues
+AppUpdatesURL=https://github.com/yumineko-game/usage-bar/releases
+DefaultDirName={localappdata}\Programs\{#MyAppName}
+DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 DisableDirPage=auto
 PrivilegesRequired=lowest
@@ -52,12 +52,12 @@ Source: "..\icons\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#WebView2BootstrapperPath}"; Flags: dontcopy
 
 [Icons]
-Name: "{autoprograms}\CodexBar"; Filename: "{app}\codexbar.exe"; Parameters: "menubar"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\CodexBar"; Filename: "{app}\codexbar.exe"; Parameters: "menubar"; WorkingDir: "{app}"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
+Name: "{autoprograms}\{#MyAppName} (usage-bar)"; Filename: "{app}\codexbar.exe"; Parameters: "menubar"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\codexbar.exe"; Parameters: "menubar"; WorkingDir: "{app}"; Tasks: desktopicon; IconFilename: "{app}\icon.ico"
 
 [Run]
 ; Interactive installs: optional checkbox on the finish page.
-Filename: "{app}\codexbar.exe"; Parameters: "menubar"; Description: "Launch CodexBar"; Flags: nowait postinstall skipifsilent; Check: CanLaunchCodexBar
+Filename: "{app}\codexbar.exe"; Parameters: "menubar"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent; Check: CanLaunchCodexBar
 ; Silent upgrades (winget / in-app updater): always relaunch so the tray icon
 ; returns after CloseApplications kills the previous process. Single-instance
 ; handles a second launch from the updater helper if both fire.

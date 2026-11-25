@@ -6,7 +6,7 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use tokio::sync::watch;
 
-const GITHUB_REPO: &str = "nesszer/Win-CodexBar";
+const GITHUB_REPO: &str = "yumineko-game/usage-bar";
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// State of the update download process
@@ -82,16 +82,21 @@ pub async fn check_for_updates() -> Option<UpdateInfo> {
 /// When `channel` is `UpdateChannel::Beta`, includes pre-release versions.
 /// When `channel` is `UpdateChannel::Stable`, only considers stable releases.
 pub async fn check_for_updates_with_channel(channel: UpdateChannel) -> Option<UpdateInfo> {
-    let client = update_client()?;
-    let response = client.get(release_url(channel)).send().await.ok()?;
-    let release = parse_release_response(response, channel).await?;
+    try_check_for_updates(channel).await.ok().flatten()
+}
+
+pub async fn try_check_for_updates(channel: UpdateChannel) -> Result<Option<UpdateInfo>, String> {
+    let response = update_http_client()?
+        .get(release_url(channel))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to check GitHub for updates: {e}"))?;
+    let Some(release) = parse_release_response(response, channel).await? else {
+        return Ok(None);
+    };
     let remote_version = remote_version_from_tag(&release.tag_name);
 
-    if is_newer_version(remote_version, CURRENT_VERSION) {
-        select_release_target(&release)
-    } else {
-        None
-    }
+    Ok(is_newer_version(remote_version, CURRENT_VERSION).then(|| select_release_target(&release)))
 }
 
 fn release_url(channel: UpdateChannel) -> String {
@@ -106,29 +111,46 @@ fn release_url(channel: UpdateChannel) -> String {
     }
 }
 
-fn update_client() -> Option<reqwest::Client> {
-    crate::core::apply_app_proxy(reqwest::Client::builder())
-        .user_agent("CodexBar")
-        .build()
-        .ok()
-}
-
 async fn parse_release_response(
     response: reqwest::Response,
     channel: UpdateChannel,
-) -> Option<GitHubRelease> {
-    if !response.status().is_success() {
-        tracing::debug!("GitHub API returned status: {}", response.status());
-        return None;
+) -> Result<Option<GitHubRelease>, String> {
+    let status = response.status();
+    if status == reqwest::StatusCode::NOT_FOUND && matches!(channel, UpdateChannel::Stable) {
+        return Ok(None);
+    }
+    if !status.is_success() {
+        return Err(format!("GitHub update check returned {status}"));
     }
 
-    match channel {
-        UpdateChannel::Beta => {
-            let releases: Vec<GitHubRelease> = response.json().await.ok()?;
-            releases.into_iter().find(|r| !r.draft)
+    let release = match channel {
+        UpdateChannel::Beta => response
+            .json::<Vec<GitHubRelease>>()
+            .await
+            .map(|releases| releases.into_iter().find(|r| !r.draft)),
+        UpdateChannel::Stable => response.json::<GitHubRelease>().await.map(Some),
+    };
+    release.map_err(|e| format!("Failed to read GitHub release metadata: {e}"))
+}
+
+fn release_installer<'a>(release: &'a GitHubRelease, base_url: &str) -> Option<&'a GitHubAsset> {
+    let version = remote_version_from_tag(&release.tag_name);
+    for product in ["UsageBar", "CodexBar"] {
+        let name = format!("{product}-{version}-Setup.exe");
+        let url = format!("{base_url}/download/{}/{}", release.tag_name, name);
+        if let Some(asset) = release.assets.iter().find(|asset| {
+            asset.name == name
+                && asset.browser_download_url == url
+                && asset
+                    .digest
+                    .as_deref()
+                    .and_then(parse_sha256_digest)
+                    .is_some()
+        }) {
+            return Some(asset);
         }
-        UpdateChannel::Stable => response.json().await.ok(),
     }
+    None
 }
 
 fn remote_version_from_tag(tag_name: &str) -> &str {
@@ -139,11 +161,9 @@ fn remote_version_from_tag(tag_name: &str) -> &str {
         .unwrap_or(tag_name)
 }
 
-fn select_release_target(release: &GitHubRelease) -> Option<UpdateInfo> {
-    let installer = release
-        .assets
-        .iter()
-        .find(|a| is_installer_asset_name(&a.name));
+fn select_release_target(release: &GitHubRelease) -> UpdateInfo {
+    let base_url = format!("https://github.com/{GITHUB_REPO}/releases");
+    let installer = release_installer(release, &base_url);
 
     let (download_url, delivery, expected_sha256) = if let Some(asset) = installer {
         (
@@ -159,14 +179,14 @@ fn select_release_target(release: &GitHubRelease) -> Option<UpdateInfo> {
         (release.html_url.clone(), UpdateDelivery::Manual, None)
     };
 
-    Some(UpdateInfo {
+    UpdateInfo {
         version: release.tag_name.clone(),
         download_url,
         expected_sha256,
         release_url: release.html_url.clone(),
         release_notes: release.body.clone().unwrap_or_default(),
         delivery,
-    })
+    }
 }
 
 fn is_installer_asset_name(name: &str) -> bool {
@@ -174,13 +194,14 @@ fn is_installer_asset_name(name: &str) -> bool {
     lower.ends_with("-setup.exe") || lower.ends_with(".msi")
 }
 
-fn parse_version_triplet(v: &str) -> (u32, u32, u32) {
-    let parts: Vec<u32> = v.split('.').filter_map(|p| p.parse().ok()).collect();
-    (
-        parts.first().copied().unwrap_or(0),
-        parts.get(1).copied().unwrap_or(0),
-        parts.get(2).copied().unwrap_or(0),
-    )
+fn parse_version_triplet(v: &str) -> Option<(u32, u32, u32)> {
+    let mut parts = v.split('.');
+    let version = (
+        parts.next()?.parse().ok()?,
+        parts.next()?.parse().ok()?,
+        parts.next()?.parse().ok()?,
+    );
+    parts.next().is_none().then_some(version)
 }
 
 fn parse_sha256_digest(digest: &str) -> Option<&str> {
@@ -199,10 +220,10 @@ fn parse_sha256_digest(digest: &str) -> Option<&str> {
 
 /// Compare semantic versions, returns true if remote is newer
 fn is_newer_version(remote: &str, current: &str) -> bool {
-    let remote_v = parse_version_triplet(remote);
-    let current_v = parse_version_triplet(current);
-
-    remote_v > current_v
+    matches!(
+        (parse_version_triplet(remote), parse_version_triplet(current)),
+        (Some(remote), Some(current)) if remote > current
+    )
 }
 
 /// Get the download directory for updates
@@ -274,6 +295,7 @@ fn update_http_client() -> Result<reqwest::Client, String> {
 async fn start_download(download_url: &str) -> Result<reqwest::Response, String> {
     let response = update_http_client()?
         .get(download_url)
+        .timeout(std::time::Duration::from_secs(300))
         .send()
         .await
         .map_err(|e| format!("Failed to start download: {}", e))?;
@@ -585,7 +607,7 @@ mod tests {
     fn prefers_installer_asset_for_auto_update() {
         let release = GitHubRelease {
             tag_name: "v1.2.6".to_string(),
-            html_url: "https://github.com/nesszer/Win-CodexBar/releases/tag/v1.2.6".to_string(),
+            html_url: "https://github.com/yumineko-game/usage-bar/releases/tag/v1.2.6".to_string(),
             body: None,
             assets: vec![
                 GitHubAsset {
@@ -595,7 +617,7 @@ mod tests {
                 },
                 GitHubAsset {
                     name: "CodexBar-1.2.6-Setup.exe".to_string(),
-                    browser_download_url: "https://example.com/CodexBar-1.2.6-Setup.exe"
+                    browser_download_url: "https://github.com/yumineko-game/usage-bar/releases/download/v1.2.6/CodexBar-1.2.6-Setup.exe"
                         .to_string(),
                     digest: Some(
                         "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -606,11 +628,11 @@ mod tests {
             draft: false,
         };
 
-        let update = select_release_target(&release).expect("update target");
+        let update = select_release_target(&release);
 
         assert_eq!(
             update.download_url,
-            "https://example.com/CodexBar-1.2.6-Setup.exe"
+            "https://github.com/yumineko-game/usage-bar/releases/download/v1.2.6/CodexBar-1.2.6-Setup.exe"
         );
         assert!(update.supports_auto_apply());
         assert!(update.supports_auto_download());
@@ -620,7 +642,7 @@ mod tests {
     fn falls_back_to_manual_release_when_only_portable_exe_exists() {
         let release = GitHubRelease {
             tag_name: "v1.2.6".to_string(),
-            html_url: "https://github.com/nesszer/Win-CodexBar/releases/tag/v1.2.6".to_string(),
+            html_url: "https://github.com/yumineko-game/usage-bar/releases/tag/v1.2.6".to_string(),
             body: None,
             assets: vec![GitHubAsset {
                 name: "codexbar.exe".to_string(),
@@ -630,13 +652,35 @@ mod tests {
             draft: false,
         };
 
-        let update = select_release_target(&release).expect("update target");
+        let update = select_release_target(&release);
 
         assert_eq!(
             update.download_url,
-            "https://github.com/nesszer/Win-CodexBar/releases/tag/v1.2.6"
+            "https://github.com/yumineko-game/usage-bar/releases/tag/v1.2.6"
         );
         assert!(!update.supports_auto_apply());
+    }
+
+    #[test]
+    fn installer_requires_repository_url_and_github_digest() {
+        let base = "https://github.com/yumineko-game/usage-bar/releases";
+        let name = "UsageBar-1.2.6-Setup.exe";
+        let mut release = GitHubRelease {
+            tag_name: "v1.2.6".to_string(),
+            html_url: format!("{base}/tag/v1.2.6"),
+            body: None,
+            assets: vec![GitHubAsset {
+                name: name.to_string(),
+                browser_download_url: format!("{base}/download/v1.2.6/{name}"),
+                digest: None,
+            }],
+            draft: false,
+        };
+        assert!(!select_release_target(&release).supports_auto_download());
+        release.assets[0].digest = Some(format!("sha256:{}", "a".repeat(64)));
+        assert!(select_release_target(&release).supports_auto_download());
+        release.assets[0].browser_download_url = format!("https://example.com/{name}");
+        assert!(!select_release_target(&release).supports_auto_download());
     }
 
     #[test]

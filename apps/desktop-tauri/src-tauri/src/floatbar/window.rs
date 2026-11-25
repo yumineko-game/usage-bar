@@ -262,7 +262,7 @@ pub fn show(app: &tauri::AppHandle, settings: &codexbar::settings::Settings) -> 
         WebviewUrl::App(format!("index.html?window=floatbar&orientation={orientation}").into());
 
     let builder = tauri::WebviewWindowBuilder::new(app, FLOATBAR_LABEL, url)
-        .title("CodexBar Float Bar")
+        .title("UsageBar Float Bar")
         .inner_size(w, h)
         .decorations(false)
         .shadow(false)

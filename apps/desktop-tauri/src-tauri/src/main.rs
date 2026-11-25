@@ -277,6 +277,7 @@ fn main() {
             commands::get_credential_storage_status,
             commands::get_update_state,
             commands::check_for_updates,
+            commands::install_github_update,
             commands::download_update,
             commands::apply_update,
             commands::dismiss_update,
@@ -492,7 +493,7 @@ fn main() {
             }
         })
         .build(context)
-        .expect("failed to build CodexBar desktop shell")
+        .expect("failed to build UsageBar desktop shell")
         .run(move |_app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
                 stay_awake::shutdown();

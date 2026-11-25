@@ -252,6 +252,11 @@ describe("FloatBar", () => {
         ResetsInHoursMinutes: "Resets in {}h {}m",
         ResetsInDaysHours: "Resets in {}d {}h",
         ResetsInHoursOnly: "Resets in {}h",
+        PanelNow: "now",
+        DurationHours: "{}h",
+        DurationHoursMinutes: "{}h {}m",
+        DurationMinutes: "{}m",
+        DurationDaysHours: "{}d {}h",
         ProviderTextNoActiveSession: "No active 5h session",
         ProviderTextApiRate: "{} API-rate",
         ProviderTextNoBudgetSet: "No budget set",
@@ -374,7 +379,7 @@ describe("FloatBar", () => {
     await waitFor(() => {
       const pill = container.querySelector(".floatbar__pill");
       expect(pill?.getAttribute("title")).toBe(
-        "Claude: 13% used\n34.07 EUR / 255.00 EUR · 220.93 EUR remaining",
+        "Claude: 13% used",
       );
       expect(container.querySelector(".floatbar__reset")).toBeNull();
     });
@@ -440,7 +445,7 @@ describe("FloatBar", () => {
     expect(pill?.classList.contains("floatbar__pill--ok")).toBe(true);
   });
 
-  it("keeps the neutral tone for an informational metric in remaining mode", async () => {
+  it("keeps the neutral tone and omits monetary amounts in remaining mode", async () => {
     tauriMocks.getCachedProviders.mockResolvedValue([
       snapshot("cursor", "Cursor", 100, {
         informational: true,
@@ -458,7 +463,7 @@ describe("FloatBar", () => {
       expect(container.querySelector(".floatbar__pill")).not.toBeNull();
     });
     const pill = container.querySelector(".floatbar__pill");
-    expect(pill?.getAttribute("title")).toBe("Cursor: $12.40 API-rate");
+    expect(pill?.getAttribute("title")).toBe("Cursor: —");
     expect(pill?.classList.contains("floatbar__pill--ok")).toBe(true);
   });
 
@@ -499,92 +504,6 @@ describe("FloatBar", () => {
       );
       expect(titles).toEqual(["Codex: 50% used", "Claude: 20% used"]);
     });
-  });
-
-  it("loads local cost summaries without using the foreground chart endpoint", async () => {
-    tauriMocks.getCachedProviders.mockResolvedValue([
-      snapshot("codex", "Codex", 75),
-    ]);
-    tauriMocks.getSettingsSnapshot.mockResolvedValue(settings());
-    tauriMocks.getProviderLocalUsageSummary.mockResolvedValue({
-      todayCost: 1.25,
-      thirtyDayCost: 12.5,
-      thirtyDayTokens: 1000,
-      periodCost: 12.5,
-      periodTokens: 1000,
-      reportingPeriod: "rolling:30",
-      latestTokens: 200,
-      topModel: "gpt-5",
-      estimateNote: "Estimated from local logs",
-      tokenCostUpdatedAtMs: 1234,
-    });
-
-    renderFloatBar(bootstrap({ floatBarShowCost: true }));
-
-    await waitFor(() => {
-      expect(tauriMocks.getProviderLocalUsageSummary).toHaveBeenCalledWith("codex");
-    });
-    expect(tauriMocks.getProviderChartData).not.toHaveBeenCalled();
-  });
-
-  it("marks displayed local cost as an estimate", async () => {
-    tauriMocks.getCachedProviders.mockResolvedValue([snapshot("codex", "Codex", 75)]);
-    tauriMocks.getSettingsSnapshot.mockResolvedValue(settings({ floatBarShowCost: true }));
-    tauriMocks.getProviderLocalUsageSummary.mockResolvedValue({
-      todayCost: 1.25,
-      thirtyDayCost: 12.5,
-      thirtyDayTokens: 1000,
-      periodCost: 12.5,
-      periodTokens: 1000,
-      reportingPeriod: "rolling:30",
-      latestTokens: 200,
-      topModel: "gpt-5",
-      estimateNote: "Estimated from local logs",
-      tokenCostUpdatedAtMs: 1234,
-    });
-
-    const { container } = renderFloatBar(bootstrap({ floatBarShowCost: true }));
-
-    await waitFor(() => {
-      expect(container.querySelector(".floatbar__cost-estimate")?.textContent).toBe(
-        "Estimate",
-      );
-    });
-    expect(container.querySelector(".floatbar__cost-pill")?.getAttribute("title")).toContain(
-      "(Estimate)",
-    );
-  });
-
-  it("shows the selected History window cost with its short label", async () => {
-    tauriMocks.getCachedProviders.mockResolvedValue([snapshot("codex", "Codex", 75)]);
-    tauriMocks.getSettingsSnapshot.mockResolvedValue(
-      settings({ floatBarShowCost: true, costReportingPeriod: "month-to-date" }),
-    );
-    tauriMocks.getProviderLocalUsageSummary.mockResolvedValue({
-      todayCost: 1.25,
-      // Fixed 30-day compat field stays different from the selected window.
-      thirtyDayCost: 12.5,
-      thirtyDayTokens: 1000,
-      periodCost: 4.75,
-      periodTokens: 300,
-      reportingPeriod: "month-to-date",
-      latestTokens: 200,
-      topModel: "gpt-5",
-      estimateNote: "Estimated from local logs",
-      tokenCostUpdatedAtMs: 1234,
-    });
-
-    const { container } = renderFloatBar(
-      bootstrap({ floatBarShowCost: true, costReportingPeriod: "month-to-date" }),
-    );
-
-    await waitFor(() => {
-      const items = Array.from(container.querySelectorAll(".floatbar__cost-item")).map(
-        (item) => item.textContent,
-      );
-      expect(items).toEqual(["Today$1.25", "MTD$4.75"]);
-    });
-    expect(container.textContent).not.toContain("$12.50");
   });
 
   it("does not scan local costs by default", async () => {
@@ -1080,6 +999,7 @@ describe("FloatBar", () => {
         buildBundle(
           {
             ResetsInHoursMinutes: "{} 小时 {} 分钟后重置",
+            DurationHoursMinutes: "{}小时{}分钟",
             TrayResetsDueNow: "现在重置",
           },
           "chinese",
@@ -1101,7 +1021,7 @@ describe("FloatBar", () => {
       await waitFor(() => {
         const reset = container.querySelector(".floatbar__reset");
         expect(reset?.querySelector(".floatbar__reset-time")).toHaveTextContent(
-          "4h 59m",
+          "4小时59分钟",
         );
         expect(container.querySelector(".floatbar__pill")?.getAttribute("title")).toContain(
           fullResetText,
@@ -1123,6 +1043,7 @@ describe("FloatBar", () => {
         buildBundle(
           {
             TrayResetsDueNow: fullResetText,
+            PanelNow: "现在",
           },
           "chinese",
         ),
@@ -1143,7 +1064,7 @@ describe("FloatBar", () => {
       await waitFor(() => {
         const reset = container.querySelector(".floatbar__reset");
         expect(reset?.querySelector(".floatbar__reset-time")).toHaveTextContent(
-          "now",
+          "现在",
         );
         expect(container.querySelector(".floatbar__pill")?.getAttribute("title")).toContain(
           fullResetText,
@@ -1160,7 +1081,7 @@ describe("FloatBar", () => {
     const now = Date.parse("2024-06-01T00:00:00Z");
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
-      tauriMocks.getLocaleStrings.mockResolvedValue(buildBundle({}, "chinese"));
+      tauriMocks.getLocaleStrings.mockResolvedValue(buildBundle({ DurationMinutes: "{}分钟" }, "chinese"));
       tauriMocks.getCachedProviders.mockResolvedValue([
         snapshot("claude", "Claude", 20, {
           resetsAt: "2024-06-01T00:00:30Z",
@@ -1176,7 +1097,7 @@ describe("FloatBar", () => {
 
       await waitFor(() => {
         expect(container.querySelector(".floatbar__reset-time")).toHaveTextContent(
-          "1m",
+          "1分钟",
         );
       });
     } finally {
@@ -1193,6 +1114,7 @@ describe("FloatBar", () => {
         buildBundle(
           {
             ResetsInDaysHours: "{} 天 {} 小时后重置",
+            DurationDaysHours: "{}天{}小时",
           },
           "chinese",
         ),
@@ -1213,7 +1135,7 @@ describe("FloatBar", () => {
       await waitFor(() => {
         const reset = container.querySelector(".floatbar__reset");
         expect(reset?.querySelector(".floatbar__reset-time")).toHaveTextContent(
-          "1d 2h",
+          "1天2小时",
         );
         expect(container.querySelector(".floatbar__pill")?.getAttribute("title")).toContain(
           fullResetText,

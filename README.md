@@ -1,21 +1,23 @@
-# Win-CodexBar
+# UsageBar
 
 [English](./README.md) | [简体中文](./README.zh-CN.md) | [繁體中文（臺灣）](./README.zh-TW.md) | [日本語](./README.ja-JP.md) | [한국어](./README.ko-KR.md) | [Español mexicano](./README.es-MX.md) | [Português (Brasil)](./README.pt-BR.md) | [Türkçe](./README.tr-TR.md)
 
-Win-CodexBar is a Windows tray app that shows how much of your AI coding-tool quota you have used, without opening each provider's dashboard. It is a Windows port of [CodexBar](https://github.com/steipete/CodexBar) for macOS. The app is a Tauri 2 and React shell on top of shared Rust provider code.
+UsageBar is a Windows tray app that shows how much of your AI coding-tool quota you have used, without opening each provider's dashboard. It is a Windows port of [CodexBar](https://github.com/steipete/CodexBar) for macOS. The app is a Tauri 2 and React shell on top of shared Rust provider code.
 
 <table>
   <tr>
     <td width="36%" align="center">
-      <img src="docs/images/tray-panel.png" alt="Win-CodexBar tray panel showing provider usage cards"/>
+      <img src="docs/images/tray-panel.png" alt="UsageBar tray panel showing provider usage cards"/>
     </td>
     <td width="64%" align="center">
-      <img src="docs/images/settings-providers.png" alt="Win-CodexBar Providers settings page"/>
+      <img src="docs/images/settings-providers.png" alt="UsageBar Providers settings page"/>
     </td>
   </tr>
 </table>
 
 ## Install
+
+Build UsageBar from source using the instructions below. The Winget package and downloads in this section are published by the upstream Win-CodexBar project.
 
 Install with the Windows Package Manager:
 
@@ -182,8 +184,8 @@ A new install follows the Windows display language. Pick **System** or a languag
 You need Rust (stable, `x86_64-pc-windows-msvc`), the Visual Studio C++ build tools, Node.js and pnpm. `scripts/dev.ps1` checks that `cargo` and `pnpm.cmd` are on `PATH` (and `dlltool` on GNU hosts) but installs nothing. Clone from the folder that should hold the repo; the remaining commands run from the cloned repo root:
 
 ```powershell
-git clone https://github.com/nesszer/Win-CodexBar.git
-cd Win-CodexBar
+git clone https://github.com/yumineko-game/usage-bar.git
+cd usage-bar
 pnpm --dir apps/desktop-tauri install --frozen-lockfile
 .\scripts\dev.ps1
 ```

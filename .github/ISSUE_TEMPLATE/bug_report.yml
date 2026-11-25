@@ -1,5 +1,5 @@
 name: Bug report
-description: Report something broken in Win-CodexBar.
+description: Report something broken in UsageBar.
 title: "[Bug]: "
 labels: ["bug"]
 body:

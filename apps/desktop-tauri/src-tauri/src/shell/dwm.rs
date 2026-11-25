@@ -171,7 +171,7 @@ enum Chrome {
 }
 
 #[cfg(windows)]
-const DWMWCP_ROUND: u32 = 2;
+const DWMWCP_DONOTROUND: u32 = 1;
 
 /// Win32 COLORREF (`0x00BBGGRR`).
 #[cfg(windows)]
@@ -189,7 +189,7 @@ impl Chrome {
     }
 
     fn corner_preference(self) -> Option<u32> {
-        (self == Self::LightPanel).then_some(DWMWCP_ROUND)
+        (self == Self::LightPanel).then_some(DWMWCP_DONOTROUND)
     }
 
     fn border_color(self) -> Option<u32> {
@@ -350,8 +350,8 @@ mod tests {
     }
 
     #[test]
-    fn only_the_light_panel_rounds_and_recolors_its_border() {
-        assert_eq!(Chrome::LightPanel.corner_preference(), Some(2));
+    fn light_panel_uses_square_corners_and_a_hairline_border() {
+        assert_eq!(Chrome::LightPanel.corner_preference(), Some(1));
         assert_eq!(Chrome::LightPanel.border_color(), Some(0x008E_8B8A));
         assert_eq!(Chrome::Dark.corner_preference(), None);
         assert_eq!(Chrome::Dark.border_color(), None);

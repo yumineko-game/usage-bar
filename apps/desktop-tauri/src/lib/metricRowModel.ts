@@ -8,7 +8,7 @@ import type {
   WorkdayTickStyle,
 } from "../types/bridge";
 import { type QuotaWarningSettings, resolveQuotaWarning } from "./quotaWarnings";
-import { resetDescriptionFallback } from "./usageWindows";
+import { quotaOnlyDescription, resetDescriptionFallback } from "./usageWindows";
 
 type Translate = (key: LocaleKey) => string;
 
@@ -82,6 +82,7 @@ export interface MetricRowInput {
   providerId: string;
   resetText: string | null;
   compact: boolean;
+  tray?: boolean;
   showAsUsed: boolean;
   showResetWhenExhausted: boolean;
   paceEnabled: boolean;
@@ -131,9 +132,9 @@ function roundHalfEven(value: number): number {
   return Math.abs(value % 1) === 0.5 && rounded % 2 !== 0 ? rounded - 1 : rounded;
 }
 
-function percentLabel(percent: number, suffix: string): string {
-  if (percent > 0 && percent < 1) return `<1% ${suffix}`;
-  return `${roundHalfEven(percent)}% ${suffix}`;
+function percentLabel(percent: number): string {
+  if (percent > 0 && percent < 1) return "<1%";
+  return `${roundHalfEven(percent)}%`;
 }
 
 function countdownParts(seconds: number) {
@@ -198,18 +199,27 @@ export function metricResetText(
   relative: boolean,
   now: number,
   t: Translate,
+  short = false,
 ): string | null {
   const target = snap.resetsAt ? Date.parse(snap.resetsAt) : Number.NaN;
   if (!Number.isFinite(target)) {
-    return normalizeResetDescription(resetDescriptionFallback(snap), t);
+    const description = resetDescriptionFallback(snap);
+    return normalizeResetDescription(short ? quotaOnlyDescription(description) : description, t);
+  }
+  const seconds = (target - now) / 1000;
+  if (short && (relative || snap.resetRegenerates)) {
+    const duration = formatCountdown(seconds, DURATION_KEYS, t);
+    if (duration) return intlLocale(t) === "ja-JP" ? duration.replace(/ /g, "") : duration;
+    return t(snap.resetRegenerates ? "RegeneratesNow" : "PanelNow");
   }
   if (snap.resetRegenerates) {
-    return regenText((target - now) / 1000, t);
+    return regenText(seconds, t);
   }
   if (!relative) {
-    return fill(t("ResetsAtLabel"), absoluteResetDescription(new Date(target), new Date(now), t));
+    const deadline = absoluteResetDescription(new Date(target), new Date(now), t);
+    return short ? deadline : fill(t("ResetsAtLabel"), deadline);
   }
-  return formatCountdown((target - now) / 1000, RESET_KEYS, t) ?? t("ProviderTextResetsNow");
+  return formatCountdown(seconds, RESET_KEYS, t) ?? t("ProviderTextResetsNow");
 }
 
 function paceKind(lane: MetricLane, windowMinutes: number | null, resetWindow: boolean): PaceKind | null {
@@ -356,31 +366,31 @@ export function metricRowPresentation(input: MetricRowInput, t: Translate): Metr
   const replacesPercent =
     input.showResetWhenExhausted && snap.isExhausted && resetTarget > input.now && input.resetText !== null;
   const visible = visiblePace(input);
-  const markers = barMarkers(input);
+  const markers = input.tray ? [] : barMarkers(input);
   // The daily target shares the pace setting and the non-compact meta line.
   const dailyTarget =
-    input.paceEnabled && !input.compact && snap.dailyTarget
+    input.paceEnabled && !input.tray && !input.compact && snap.dailyTarget
       ? dailyTargetText(snap.dailyTarget, t)
       : null;
   const metaParts = [
-    visible && !input.compact ? paceMetaText(visible.pace, visible.kind, t) : null,
+    visible && (input.tray || !input.compact) ? paceMetaText(visible.pace, visible.kind, t) : null,
     dailyTarget,
   ].filter((part): part is string => part !== null);
   const valuePercent = Math.round(shown);
+  const numericPercent = percentLabel(shown);
+  const describedPercent = `${numericPercent} ${t(showAsUsed ? "PanelUsedSuffix" : "PanelLeftSuffix")}`;
   const pacePercent =
     visible && PACE_DIRECTION[visible.pace.stage] !== "onPace"
       ? clampPercent(showAsUsed ? visible.pace.expectedUsedPercent : 100 - visible.pace.expectedUsedPercent)
       : null;
   return {
-    percentText: replacesPercent
-      ? null
-      : percentLabel(shown, t(showAsUsed ? "PanelUsedSuffix" : "PanelLeftSuffix")),
-    resetText: input.compact && !replacesPercent ? null : input.resetText,
+    percentText: replacesPercent ? null : input.tray ? numericPercent : describedPercent,
+    resetText: input.compact && !input.tray && !replacesPercent ? null : input.resetText,
     metaText: metaParts.length > 0 ? metaParts.join(" · ") : null,
     bar: {
       fillPercent: renderedFillPercent(shown),
       valuePercent,
-      valueText: barValueText(valuePercent, markers, t),
+      valueText: input.tray ? describedPercent : barValueText(valuePercent, markers, t),
       pacePercent,
       paceDeficit: visible ? visible.pace.actualUsedPercent > visible.pace.expectedUsedPercent : false,
       markers,

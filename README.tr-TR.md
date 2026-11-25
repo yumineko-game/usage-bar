@@ -1,16 +1,16 @@
-# Win-CodexBar
+# UsageBar
 
 [English](./README.md) | [简体中文](./README.zh-CN.md) | [繁體中文（臺灣）](./README.zh-TW.md) | [日本語](./README.ja-JP.md) | [한국어](./README.ko-KR.md) | [Español mexicano](./README.es-MX.md) | [Português (Brasil)](./README.pt-BR.md) | [Türkçe](./README.tr-TR.md)
 
-Win-CodexBar, bir düzine pano açmadan yapay zekâ kodlama araçlarının kullanımını görebilmenizi sağlayan bir Windows sistem tepsisi uygulamasıdır. [CodexBar](https://github.com/steipete/CodexBar) ruhunu, ortak Rust sağlayıcı mantığıyla desteklenen Tauri + React masaüstü kabuğuna taşır.
+UsageBar, bir düzine pano açmadan yapay zekâ kodlama araçlarının kullanımını görebilmenizi sağlayan bir Windows sistem tepsisi uygulamasıdır. [CodexBar](https://github.com/steipete/CodexBar) ruhunu, ortak Rust sağlayıcı mantığıyla desteklenen Tauri + React masaüstü kabuğuna taşır.
 
 <table>
   <tr>
     <td width="36%" align="center">
-      <img src="docs/images/tray-panel.png" alt="Sağlayıcı kullanım kartlarını gösteren Win-CodexBar tepsi paneli"/>
+      <img src="docs/images/tray-panel.png" alt="Sağlayıcı kullanım kartlarını gösteren UsageBar tepsi paneli"/>
     </td>
     <td width="64%" align="center">
-      <img src="docs/images/settings-providers.png" alt="Win-CodexBar Sağlayıcılar ayar sayfası"/>
+      <img src="docs/images/settings-providers.png" alt="UsageBar Sağlayıcılar ayar sayfası"/>
     </td>
   </tr>
 </table>
@@ -26,6 +26,8 @@ Win-CodexBar, bir düzine pano açmadan yapay zekâ kodlama araçlarının kulla
 - WebView2 ve VC++ çalışma zamanı önyüklemesi ile SHA-256 sağlama toplamı dosyaları içeren **yükleyici ve taşınabilir derlemeler**.
 
 ## Kurulum
+
+Aşağıdaki adımları izleyerek UsageBar'ı kaynak koddan derleyebilirsiniz. Bu bölümdeki Winget paketi ve indirmeler, Win-CodexBar projesi tarafından yayımlanır.
 
 Windows Paket Yöneticisi ile kurun:
 
@@ -135,8 +137,8 @@ Arayüz ve katkıda bulunanlara yönelik raporlama şu dilleri destekler:
 
 ```powershell
 # Gereksinimler: Node.js + pnpm. Rust ve MinGW gerektiğinde betik tarafından kurulur.
-git clone https://github.com/Finesssee/Win-CodexBar.git
-cd Win-CodexBar
+git clone https://github.com/yumineko-game/usage-bar.git
+cd usage-bar
 .\scripts\dev.ps1
 ```
 

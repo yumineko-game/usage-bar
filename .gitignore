@@ -73,6 +73,7 @@ nul
 /docs/adr/*
 !/docs/adr/*.md
 /scripts/*
+!/scripts/usagebar-preview.cmd
 !/scripts/win-config-tools/
 /scripts/win-config-tools/**/__pycache__/
 /scripts/win-config-tools/**/*.pyc

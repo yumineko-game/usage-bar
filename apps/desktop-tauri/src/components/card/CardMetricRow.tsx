@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import type { RateWindowSnapshot, TrayPanelStyle, WorkdayTickStyle } from "../../types/bridge";
+import type { RateWindowSnapshot, WorkdayTickStyle } from "../../types/bridge";
 import { useLocale } from "../../hooks/useLocale";
 import {
   useFormattedResetTime,
   type ResetTimeFormatMode,
 } from "../../hooks/useFormattedResetTime";
 import { isMonthlyLimitBlockActive } from "../../lib/monthlyLimitBlock";
-import { windowDetailText } from "../../lib/usageWindows";
+import { quotaOnlyDescription, windowDetailText } from "../../lib/usageWindows";
 import { localizeProviderText } from "../../lib/providerText";
 import {
   metricResetText,
@@ -29,18 +29,12 @@ export interface MetricRowDisplay {
   showResetWhenExhausted?: boolean;
   showPace?: boolean;
   showAsUsed?: boolean;
-  compactOverview?: boolean;
   monthlyLimitBlockNow?: number;
   usageThresholds?: UsageThresholdSettings | null;
   quotaWarningMarkersVisible?: boolean;
   weeklyProgressWorkDays?: number | null;
   workdayTickStyle?: WorkdayTickStyle;
-  /** Settings > Menu > Panel look; defaults to modern. */
-  panelStyle?: TrayPanelStyle;
 }
-
-/** Bar thickness in px; the tray card passes a thicker bar. */
-const DEFAULT_BAR_HEIGHT = 6;
 
 function useCountdownNow(ticking: boolean): number {
   const [, setTick] = useState(0);
@@ -52,12 +46,7 @@ function useCountdownNow(ticking: boolean): number {
   return Date.now();
 }
 
-/**
- * One rate window. Modern: the title, the bar, the percent and the reset on
- * one line under the bar, then the pace meta line. Classic: the title with the
- * percent and the reset on one line, then the bar and the meta line.
- * Budgets, the pace chart and the session forecast live in Settings.
- */
+/** One rate window, with an inline gauge in the tray and more detail in Settings. */
 export default function CardMetricRow({
   title,
   snap,
@@ -65,7 +54,7 @@ export default function CardMetricRow({
   providerId,
   display,
   resetFormatMode,
-  barHeight = DEFAULT_BAR_HEIGHT,
+  tray = false,
 }: {
   title: string;
   snap: RateWindowSnapshot;
@@ -73,7 +62,7 @@ export default function CardMetricRow({
   providerId: string;
   display: MetricRowDisplay;
   resetFormatMode?: ResetTimeFormatMode;
-  barHeight?: number;
+  tray?: boolean;
 }) {
   const { t } = useLocale();
   const {
@@ -81,13 +70,11 @@ export default function CardMetricRow({
     showResetWhenExhausted = false,
     showPace = true,
     showAsUsed = false,
-    compactOverview = false,
     monthlyLimitBlockNow,
     usageThresholds = null,
     quotaWarningMarkersVisible = true,
     weeklyProgressWorkDays = null,
     workdayTickStyle = "subtle",
-    panelStyle = "modern",
   } = display;
   // Upstream 0.69.0 #4091: a longer exhausted pool (Kimi's monthly membership)
   // blocks this window until the pool resets. Raw percentages stay untouched.
@@ -103,44 +90,55 @@ export default function CardMetricRow({
     resetFormatMode ?? "reset",
   );
   const now = useCountdownNow(!isInformational && !blocked && snap.resetsAt != null);
-  const detailText = localizeProviderText(windowDetailText(snap), t) || null;
+  const detailText = !tray && localizeProviderText(windowDetailText(snap), t);
+  const trayTitle = <span className="menu-metric__title" title={title}>{title}</span>;
   if (blocked) {
     // Upstream `MetricRow` status layout: title plus one secondary status line.
     return (
-      <div className="menu-metric menu-metric--blocked">
-        <span className="menu-metric__title">{title}</span>
+      <div className={`menu-metric menu-metric--blocked${tray ? " menu-metric--tray" : ""}`}>
+        {tray ? trayTitle : <span className="menu-metric__title">{title}</span>}
         <span className="menu-metric__status">{t("PanelBlockedByMonthlyLimit")}</span>
       </div>
     );
   }
   if (isInformational) {
+    const description = tray ? quotaOnlyDescription(snap.resetDescription) : snap.resetDescription?.trim();
     const infoPrimary =
-      localizeProviderText(snap.resetDescription?.trim(), t) || informationalReset || "—";
+      localizeProviderText(description, t) || informationalReset || "—";
+    const distinctReset = informationalReset !== infoPrimary ? informationalReset : null;
+    if (tray) {
+      return (
+        <div className="menu-metric menu-metric--tray">
+          {trayTitle}
+          <span className="menu-metric__status" title={infoPrimary}>{infoPrimary}</span>
+          {distinctReset && (
+            <span className="menu-metric__reset" title={distinctReset}>{distinctReset}</span>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="menu-metric">
         <span className="menu-metric__title">{title}</span>
         <div className="menu-metric__row">
           <span className="menu-metric__pct">{infoPrimary}</span>
-          {!compactOverview &&
-            snap.resetDescription?.trim() &&
-            informationalReset &&
-            informationalReset !== infoPrimary && (
-              <span className="menu-metric__reset">{informationalReset}</span>
-            )}
+          {distinctReset && <span className="menu-metric__reset">{distinctReset}</span>}
         </div>
-        {!compactOverview && detailText && (
+        {detailText && (
           <div className="menu-metric__detail">{detailText}</div>
         )}
       </div>
     );
   }
+  const reset = metricResetText(snap, resetTimeRelative, now, t);
   const row = metricRowPresentation(
     {
       snap,
       lane,
       providerId,
-      resetText: metricResetText(snap, resetTimeRelative, now, t),
-      compact: compactOverview,
+      resetText: reset,
+      compact: false,
+      tray,
       showAsUsed,
       showResetWhenExhausted,
       paceEnabled: showPace,
@@ -152,29 +150,14 @@ export default function CardMetricRow({
     },
     t,
   );
-  if (panelStyle === "classic") {
-    // Classic: the percent follows the title and the reset ends the same line.
+  if (tray) {
+    const deadline = metricResetText(snap, resetTimeRelative, now, t, true);
     return (
-      <div className="menu-metric">
-        <div className="menu-metric__head">
-          <span className="menu-metric__title">
-            {title}
-            {row.percentText && (
-              <>
-                {" "}
-                <span className="menu-metric__percent">{row.percentText}</span>
-              </>
-            )}
-          </span>
-          {row.resetText && <span className="menu-metric__reset">{row.resetText}</span>}
-        </div>
-        <UsageProgressBar bar={row.bar} label={title} />
-        {row.metaText && <div className="menu-metric__meta">{row.metaText}</div>}
-        {!compactOverview && detailText && (
-          <div className="menu-metric__detail">{detailText}</div>
-        )}
-        {!compactOverview && snap.isExhausted && (
-          <div className="menu-metric__exhausted">{t("DetailWindowExhausted")}</div>
+      <div className="menu-metric menu-metric--tray">
+        {trayTitle}
+        <UsageProgressBar bar={row.bar} label={title} inlineValue={row.percentText} paceHint={row.metaText} />
+        {deadline && (
+          <span className="menu-metric__reset" title={reset ?? deadline}>{deadline}</span>
         )}
       </div>
     );
@@ -182,7 +165,7 @@ export default function CardMetricRow({
   return (
     <div className="menu-metric">
       <span className="menu-metric__title">{title}</span>
-      <UsageProgressBar bar={row.bar} label={title} height={barHeight} />
+      <UsageProgressBar bar={row.bar} label={title} />
       {(row.percentText || row.resetText) && (
         <div className="menu-metric__head">
           {row.percentText && <span className="menu-metric__percent">{row.percentText}</span>}
@@ -190,10 +173,10 @@ export default function CardMetricRow({
         </div>
       )}
       {row.metaText && <div className="menu-metric__meta">{row.metaText}</div>}
-      {!compactOverview && detailText && (
+      {detailText && (
         <div className="menu-metric__detail">{detailText}</div>
       )}
-      {!compactOverview && snap.isExhausted && (
+      {snap.isExhausted && (
         <div className="menu-metric__exhausted">{t("DetailWindowExhausted")}</div>
       )}
     </div>

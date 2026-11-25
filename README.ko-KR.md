@@ -1,16 +1,16 @@
-# Win-CodexBar
+# UsageBar
 
 [English](./README.md) | [简体中文](./README.zh-CN.md) | [繁體中文（臺灣）](./README.zh-TW.md) | [日本語](./README.ja-JP.md) | [한국어](./README.ko-KR.md) | [Español mexicano](./README.es-MX.md) | [Português (Brasil)](./README.pt-BR.md) | [Türkçe](./README.tr-TR.md)
 
-Win-CodexBar는 여러 AI 코딩 도구의 사용량을 Windows 시스템 트레이에서 바로 확인할 수 있게 해 주는 데스크톱 앱입니다. [CodexBar](https://github.com/steipete/CodexBar)의 아이디어를 Tauri + React 데스크톱 셸과 공유 Rust 백엔드로 Windows에 맞게 포팅했습니다.
+UsageBar는 여러 AI 코딩 도구의 사용량을 Windows 시스템 트레이에서 바로 확인할 수 있게 해 주는 데스크톱 앱입니다. [CodexBar](https://github.com/steipete/CodexBar)의 아이디어를 Tauri + React 데스크톱 셸과 공유 Rust 백엔드로 Windows에 맞게 포팅했습니다.
 
 <table>
   <tr>
     <td width="36%" align="center">
-      <img src="docs/images/tray-panel.png" alt="프로바이더 사용량 카드를 보여 주는 Win-CodexBar 트레이 패널"/>
+      <img src="docs/images/tray-panel.png" alt="프로바이더 사용량 카드를 보여 주는 UsageBar 트레이 패널"/>
     </td>
     <td width="64%" align="center">
-      <img src="docs/images/settings-providers.png" alt="Win-CodexBar 프로바이더 설정 화면"/>
+      <img src="docs/images/settings-providers.png" alt="UsageBar 프로바이더 설정 화면"/>
     </td>
   </tr>
 </table>
@@ -26,6 +26,8 @@ Win-CodexBar는 여러 AI 코딩 도구의 사용량을 Windows 시스템 트레
 - **설치형 / 포터블 빌드**: WebView2 Runtime, VC++ Runtime 부트스트랩, SHA-256 체크섬 파일을 포함합니다.
 
 ## 설치
+
+아래 단계에 따라 소스에서 UsageBar를 빌드할 수 있습니다. 이 섹션의 Winget 패키지와 다운로드는 업스트림 Win-CodexBar 프로젝트에서 제공합니다.
 
 Windows Package Manager로 설치할 수 있습니다.
 
@@ -57,8 +59,8 @@ Claude는 Claude 설정 페이지의 사용량과 맞추기 위해 브라우저 
 
 ```powershell
 # 사전 요구 사항: Node.js + pnpm. Rust와 MinGW는 필요할 때 스크립트가 설치합니다.
-git clone https://github.com/Finesssee/Win-CodexBar.git
-cd Win-CodexBar
+git clone https://github.com/yumineko-game/usage-bar.git
+cd usage-bar
 .\scripts\dev.ps1
 ```
 

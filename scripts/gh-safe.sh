@@ -43,9 +43,29 @@ if [[ "${repo,,}" == "steipete/codexbar" ]]; then
 else
   # Winget release step: the fork receives the manifest branch, and the PR opens on microsoft/winget-pkgs.
   case "${repo,,}" in
-    nesszer/win-codexbar|finesssee/winget-pkgs|microsoft/winget-pkgs) ;;
-    *) echo "GitHub writes are not allowlisted for '$repo'. Expected nesszer/Win-CodexBar, Finesssee/winget-pkgs or microsoft/winget-pkgs." >&2; exit 3 ;;
+    nesszer/win-codexbar|finesssee/winget-pkgs|microsoft/winget-pkgs|yumineko-game/usage-bar) ;;
+    *) echo "GitHub writes are not allowlisted for '$repo'." >&2; exit 3 ;;
   esac
+fi
+
+git_tag_write=0
+if [[ "${repo,,}" == "yumineko-game/usage-bar" ]]; then
+  version_tag='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+  if [[ "$verify_kind" == repo && "${gh_args[0]}" == git-release-tag &&
+        "${#gh_args[@]}" == 3 && "${gh_args[1]}" =~ $version_tag &&
+        "${gh_args[2]}" =~ ^[0-9a-f]{40}$ ]]; then
+    git_tag_write=1
+  elif [[ "$verify_kind" == repo && "${gh_args[0]}" == release &&
+          "${gh_args[1]:-}" == create && "${gh_args[2]:-}" =~ $version_tag ]]; then
+    [[ " ${gh_args[*]} " == *" --verify-tag "* && " ${gh_args[*]} " == *" --draft "* ]] ||
+      { echo 'UsageBar release creation requires an existing tag and a draft.' >&2; exit 3; }
+  elif [[ "$verify_kind" == release && "$target" =~ $version_tag &&
+          "${gh_args[0]}" == release && "${gh_args[1]:-}" =~ ^(upload|edit)$ ]]; then
+    :
+  else
+    echo 'UsageBar only permits writes for tagged releases.' >&2
+    exit 3
+  fi
 fi
 
 for arg in "${gh_args[@]}"; do
@@ -83,7 +103,21 @@ case "$verify_kind" in
     ;;
   pr) verified_url="$(gh pr view "$target" --repo "$repo" --json url --jq .url)" ;;
   issue) verified_url="$(gh issue view "$target" --repo "$repo" --json url --jq .url)" ;;
-  release) verified_url="$(gh api "repos/$repo/releases/tags/$target" --jq .html_url)" ;;
+  release)
+    if [[ "${repo,,}" == "yumineko-game/usage-bar" ]]; then
+      # The by-tag endpoint is published-only. Read the exact tag from the
+      # repository-scoped list, which uses an untagged URL for some drafts.
+      readback="$(gh api "repos/$repo/releases?per_page=100" --paginate --jq ".[] | select(.tag_name == \"$target\") | [.html_url, .draft] | join(\"|\")")"
+      [[ "$readback" != *$'\n'* && "$readback" == *'|'* ]] ||
+        { echo 'Release read-back did not identify exactly one object.' >&2; exit 4; }
+      verified_url="${readback%|*}"
+      if [[ "${readback##*|}" == true && "$verified_url" =~ ^https://github\.com/yumineko-game/usage-bar/releases/tag/untagged-[a-zA-Z0-9]+$ ]]; then
+        verified_url="https://github.com/$repo/releases/tag/$target"
+      fi
+    else
+      verified_url="$(gh api "repos/$repo/releases/tags/$target" --jq .html_url)"
+    fi
+    ;;
 esac
 
 expected_prefix="https://github.com/$repo/"
@@ -97,6 +131,25 @@ esac
 shopt -u nocasematch
 
 echo "Verified GitHub write target: $verified_url"
+if ((git_tag_write == 1)); then
+  tag_ref="refs/tags/${gh_args[1]}"
+  commit="${gh_args[2]}"
+  remote_url="https://github.com/$repo.git"
+  previous="$(git ls-remote --refs "$remote_url" "$tag_ref")"
+  if [[ -n "$previous" && "$previous" != "$commit"$'\t'"$tag_ref" ]]; then
+    echo "Remote tag '$tag_ref' does not point to the release commit." >&2
+    exit 4
+  fi
+  if [[ -z "$previous" ]]; then
+    if ((what_if == 1)); then
+      printf 'WhatIf: git push %q %q\n' "$remote_url" "$commit:$tag_ref"
+    else
+      git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
+        push "$remote_url" "$commit:$tag_ref"
+    fi
+  fi
+  exit 0
+fi
 if ((what_if == 1)); then
   printf 'WhatIf: gh'
   printf ' %q' "${gh_args[@]}"

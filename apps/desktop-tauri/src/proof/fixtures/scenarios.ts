@@ -34,6 +34,7 @@ import {
 
 export const PROOF_SCENARIO_NAMES = [
   "default",
+  "japanese-quotas",
   "two-codex-accounts",
   "overview-all-accounts",
   "overview-all-accounts-private",
@@ -1335,6 +1336,23 @@ function agentSessionsHostsScenario(now: Date): ProofScenario {
 
 const BUILDERS: Record<ProofScenarioName, (now: Date) => ProofScenario> = {
   default: defaultScenario,
+  "japanese-quotas": (now) => {
+    const base = defaultScenario(now);
+    const codex = base.providers.find((provider) => provider.providerId === "codex")!;
+    codex.primary.pace = {
+      stage: "ahead",
+      deltaPercent: 14,
+      expectedUsedPercent: 20,
+      actualUsedPercent: codex.primary.usedPercent,
+      etaSeconds: 3_600,
+      willLastToReset: false,
+    };
+    return {
+      ...base,
+      name: "japanese-quotas",
+      settings: { ...base.settings, uiLanguage: "japanese", weeklyProgressWorkDays: 5 },
+    };
+  },
   "two-codex-accounts": twoCodexAccountsScenario,
   "overview-all-accounts": (now) => overviewAllAccountsScenario(now, false),
   "overview-all-accounts-private": (now) => overviewAllAccountsScenario(now, true),

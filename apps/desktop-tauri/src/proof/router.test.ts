@@ -41,7 +41,7 @@ describe("proof router", () => {
     );
 
     const locale = router.handle("get_locale_strings", { language: null }) as LocaleStrings;
-    expect(locale.entries.TabGeneral).toBe("General");
+    expect(locale.entries.TabGeneral).toBe(name === "japanese-quotas" ? "一般" : "General");
 
     const surface = router.handle("get_current_surface_state") as CurrentSurfaceState;
     expect(surface.mode).toBe("trayPanel");

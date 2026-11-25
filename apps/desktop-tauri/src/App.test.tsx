@@ -1,5 +1,5 @@
 import type { SettingsSnapshot } from "./types/bridge";
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // App.tsx routes by `getCurrentWebviewWindow().label` before falling through
@@ -199,6 +199,25 @@ describe("App window-label routing", () => {
     });
     expect(queryByTestId("surface-settings")).toBeNull();
     expect(queryByTestId("surface-float-bar")).toBeNull();
+  });
+
+  it("updates the open flyout theme after Settings changes in another window", async () => {
+    webviewWindowMocks.label = "flyout";
+    tauriMocks.getBootstrapState.mockResolvedValue({
+      ...bootstrap(),
+      settings: makeSettings({ theme: "light" }),
+    });
+    render(<App />);
+
+    await waitFor(() => expect(document.documentElement).toHaveAttribute("data-theme", "light"));
+    const listener = eventMocks.listen.mock.calls.find(([name]) => name === "settings-changed");
+    expect(listener).toBeDefined();
+
+    tauriMocks.getSettingsSnapshot.mockResolvedValue(makeSettings({ theme: "dark" }));
+    await act(async () => {
+      listener?.[1]({ payload: null });
+    });
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
   });
 
   it("routes the detached settings window to Settings, not TrayPanel", async () => {

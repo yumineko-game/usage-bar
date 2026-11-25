@@ -12,8 +12,7 @@
  */
 :root {
   color-scheme: dark;
-  /* Hover and fill tint for controls: white on dark surfaces, black on light
-     ones (light theme and the light tray panel). */
+  /* Hover and fill tint for controls: white on dark surfaces, black on light ones. */
   --surface-tint-rgb: 255, 255, 255;
   --font-ui: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   font-family: var(--font-ui);

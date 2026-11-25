@@ -215,7 +215,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     let _tray = TrayIconBuilder::with_id("codexbar-main")
         .icon(icon)
-        .tooltip("CodexBar Desktop")
+        .tooltip("UsageBar")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {
@@ -511,7 +511,7 @@ fn build_tooltip(
     use codexbar::locale::{LocaleKey, get_text};
 
     if snapshots.is_empty() {
-        return "CodexBar Desktop".to_string();
+        return "UsageBar".to_string();
     }
 
     let error_label = get_text(lang, LocaleKey::TrayStatusRowError);
@@ -535,7 +535,7 @@ fn build_tooltip(
         lines.push(status);
     }
 
-    format!("CodexBar\n{}", lines.join("\n"))
+    format!("UsageBar\n{}", lines.join("\n"))
 }
 
 /// `NOTIFYICONDATAW.szTip` holds 128 UTF-16 units; 127 leaves room for the
@@ -874,7 +874,7 @@ mod tests {
 
         assert_eq!(
             tooltip,
-            "CodexBar\nClaude: 87% left • Resets in 2h 05m\nCodex: 92% left • Resets in 4h 10m"
+            "UsageBar\nClaude: 87% left • Resets in 2h 05m\nCodex: 92% left • Resets in 4h 10m"
         );
     }
 
@@ -886,7 +886,7 @@ mod tests {
 
         assert_eq!(
             build_tooltip(&[claude.clone()], &Settings::default(), lang, false),
-            "CodexBar\nClaude: 87% left • Resets in 2h 05m"
+            "UsageBar\nClaude: 87% left • Resets in 2h 05m"
         );
         let used = Settings {
             show_as_used: true,
@@ -894,7 +894,7 @@ mod tests {
         };
         assert_eq!(
             build_tooltip(&[claude], &used, lang, false),
-            "CodexBar\nClaude: 13% used • Resets in 2h 05m"
+            "UsageBar\nClaude: 13% used • Resets in 2h 05m"
         );
     }
 
@@ -907,11 +907,11 @@ mod tests {
         let lang = codexbar::settings::Language::English;
         assert_eq!(
             build_tooltip(&[estimated], &Settings::default(), lang, false),
-            "CodexBar\nOpenCode Go: ~5% left"
+            "UsageBar\nOpenCode Go: ~5% left"
         );
         assert_eq!(
             build_tooltip(&[exact], &Settings::default(), lang, false),
-            "CodexBar\nOpenCode Go: 5% left"
+            "UsageBar\nOpenCode Go: 5% left"
         );
     }
 
@@ -938,11 +938,11 @@ mod tests {
         let lang = codexbar::settings::Language::English;
         assert_eq!(
             build_tooltip(&[cursor.clone()], &settings, lang, false),
-            "CodexBar\nCursor: Grok Bot 58% left"
+            "UsageBar\nCursor: Grok Bot 58% left"
         );
         assert_eq!(
             build_tooltip(&[cursor], &Settings::default(), lang, false),
-            "CodexBar\nCursor: 70% left"
+            "UsageBar\nCursor: 70% left"
         );
     }
 
@@ -974,7 +974,7 @@ mod tests {
             false,
         );
 
-        assert_eq!(tooltip, "CodexBar\nOpenAI API: 1.5M/min\nCodex: 92% left");
+        assert_eq!(tooltip, "UsageBar\nOpenAI API: 1.5M/min\nCodex: 92% left");
     }
 
     #[test]
@@ -994,7 +994,7 @@ mod tests {
             false,
         );
 
-        assert_eq!(tooltip, "CodexBar\nCodex: 84% left • Resets in 3d 17h");
+        assert_eq!(tooltip, "UsageBar\nCodex: 84% left • Resets in 3d 17h");
     }
 
     fn balance_detail(id: &str, value: &str) -> crate::commands::ProviderDisplayDetailSnapshot {
@@ -1029,7 +1029,7 @@ mod tests {
             false,
         );
 
-        assert_eq!(tooltip, "CodexBar\nNous Portal: $6.76");
+        assert_eq!(tooltip, "UsageBar\nNous Portal: $6.76");
     }
 
     #[test]
@@ -1047,7 +1047,7 @@ mod tests {
             false,
         );
 
-        assert_eq!(tooltip, "CodexBar\nNous Portal: $0.00");
+        assert_eq!(tooltip, "UsageBar\nNous Portal: $0.00");
     }
 
     #[test]
@@ -1062,7 +1062,7 @@ mod tests {
             false,
         );
 
-        assert_eq!(tooltip, "CodexBar\nNous Portal: 75% left");
+        assert_eq!(tooltip, "UsageBar\nNous Portal: 75% left");
     }
 
     #[test]
@@ -1084,7 +1084,7 @@ mod tests {
 
         assert_eq!(
             tooltip,
-            "CodexBar\nClaude: Claude informational\nNous Portal: Nous Portal credits"
+            "UsageBar\nClaude: Claude informational\nNous Portal: Nous Portal credits"
         );
     }
 
@@ -1192,13 +1192,13 @@ mod tests {
 
     #[test]
     fn fit_tooltip_keeps_short_tooltips_unchanged() {
-        let tooltip = "CodexBar\nClaude: 87% left\nCodex: 92% left";
+        let tooltip = "UsageBar\nClaude: 87% left\nCodex: 92% left";
         assert_eq!(fit_tooltip(tooltip, TRAY_TOOLTIP_MAX_UTF16), tooltip);
     }
 
     #[test]
     fn fit_tooltip_stays_within_the_windows_limit_and_keeps_whole_lines() {
-        let mut lines = vec!["CodexBar".to_string()];
+        let mut lines = vec!["UsageBar".to_string()];
         for index in 0..20 {
             lines.push(format!(
                 "Provider {index}: 50% left • Resets in 3d 17h with a long suffix"
@@ -1210,7 +1210,7 @@ mod tests {
 
         assert!(utf16_len(&fitted) <= TRAY_TOOLTIP_MAX_UTF16, "{fitted}");
         let shown: Vec<&str> = fitted.split('\n').collect();
-        assert_eq!(shown[0], "CodexBar", "{fitted}");
+        assert_eq!(shown[0], "UsageBar", "{fitted}");
         assert!(shown.len() > 2, "{fitted}");
         let last = shown.last().expect("last line");
         assert!(last.ends_with('…'), "{fitted}");
@@ -1224,18 +1224,18 @@ mod tests {
         // Title plus one line that uses almost the whole budget; the dropped
         // third line leaves the kept line with the ellipsis, which still fits.
         let long = "A".repeat(115);
-        let tooltip = format!("CodexBar\n{long}\nB line that is dropped entirely here");
+        let tooltip = format!("UsageBar\n{long}\nB line that is dropped entirely here");
 
         let fitted = fit_tooltip(&tooltip, TRAY_TOOLTIP_MAX_UTF16);
 
         assert!(utf16_len(&fitted) <= TRAY_TOOLTIP_MAX_UTF16, "{fitted}");
-        assert_eq!(fitted, format!("CodexBar\n{long}…"));
+        assert_eq!(fitted, format!("UsageBar\n{long}…"));
     }
 
     #[test]
     fn fit_tooltip_keeps_incident_lines_under_the_title_before_provider_lines() {
         let tooltip = [
-            "CodexBar".to_string(),
+            "UsageBar".to_string(),
             "OpenAI: Major outage".to_string(),
             "Claude: 87% left".to_string(),
             "A".repeat(120),
@@ -1244,24 +1244,24 @@ mod tests {
 
         let fitted = fit_tooltip(&tooltip, TRAY_TOOLTIP_MAX_UTF16);
 
-        assert_eq!(fitted, "CodexBar\nOpenAI: Major outage\nClaude: 87% left…");
+        assert_eq!(fitted, "UsageBar\nOpenAI: Major outage\nClaude: 87% left…");
         assert!(utf16_len(&fitted) <= TRAY_TOOLTIP_MAX_UTF16);
     }
 
     #[test]
     fn fit_tooltip_drops_an_oversized_line_and_marks_the_title() {
         // The 200-unit emoji line cannot fit beside the title, so it is dropped.
-        let tooltip = format!("CodexBar\n{}", "🙂".repeat(100));
+        let tooltip = format!("UsageBar\n{}", "🙂".repeat(100));
 
         let fitted = fit_tooltip(&tooltip, TRAY_TOOLTIP_MAX_UTF16);
 
-        assert_eq!(fitted, "CodexBar…");
+        assert_eq!(fitted, "UsageBar…");
     }
 
     #[test]
     fn fit_tooltip_cuts_an_oversized_first_line_without_splitting_a_surrogate_pair() {
         // Each emoji is two UTF-16 units; a char-count cut would overflow or split a pair.
-        let tooltip = format!("{}\nCodexBar", "🙂".repeat(100));
+        let tooltip = format!("{}\nUsageBar", "🙂".repeat(100));
 
         let fitted = fit_tooltip(&tooltip, TRAY_TOOLTIP_MAX_UTF16);
 
@@ -1274,7 +1274,7 @@ mod tests {
     #[test]
     fn fit_tooltip_keeps_two_typical_provider_lines_whole() {
         let tooltip =
-            "CodexBar\nClaude: 58% left • Resets in 2h 59m\nCodex: 82% left • Resets in 4d 3h";
+            "UsageBar\nClaude: 58% left • Resets in 2h 59m\nCodex: 82% left • Resets in 4d 3h";
 
         let fitted = fit_tooltip(tooltip, TRAY_TOOLTIP_MAX_UTF16);
 

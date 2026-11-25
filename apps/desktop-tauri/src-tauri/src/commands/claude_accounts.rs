@@ -238,7 +238,7 @@ fn validate_claude_swap_operation(
     }
     if !source.supports_switching() {
         return Err(format!(
-            "{} picks the account for each request; CodexBar does not switch its accounts.",
+            "{} picks the account for each request; UsageBar does not switch its accounts.",
             source.label()
         ));
     }
@@ -571,7 +571,7 @@ mod tests {
     #[test]
     fn tcr_source_rejects_switch_and_reauthenticate() {
         let expected = Err(
-            "tcr picks the account for each request; CodexBar does not switch its accounts."
+            "tcr picks the account for each request; UsageBar does not switch its accounts."
                 .to_string(),
         );
         let switchable = account_list(false, "ok", true);

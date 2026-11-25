@@ -37,9 +37,7 @@ export function renderCard(
     showAsUsed?: boolean;
     showResetWhenExhausted?: boolean;
     showPace?: boolean;
-    compactOverview?: boolean;
-    onLayoutChange?: () => void;
-    costSummaryDisplayStyle?: "compact" | "detailed" | "hidden";
+
   } = {},
 ) {
   return render(
@@ -52,10 +50,8 @@ export function renderCard(
           showAsUsed: opts.showAsUsed,
           showResetWhenExhausted: opts.showResetWhenExhausted,
           showPace: opts.showPace,
-          compactOverview: opts.compactOverview,
-          costSummaryDisplayStyle: opts.costSummaryDisplayStyle,
+
         }}
-        onLayoutChange={opts.onLayoutChange}
       />
     </LocaleProvider>,
   );

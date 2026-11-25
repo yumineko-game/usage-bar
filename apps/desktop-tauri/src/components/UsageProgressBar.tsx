@@ -51,33 +51,56 @@ function CutMask({
   );
 }
 
-/** `height` is the bar thickness in px; the ends are fully rounded at any thickness. */
 export default function UsageProgressBar({
   bar,
   label,
   height = DEFAULT_HEIGHT,
+  inlineValue,
+  paceHint,
 }: {
   bar: UsageBarModel;
   label: string;
   height?: number;
+  inlineValue?: string | null;
+  paceHint?: string | null;
 }) {
-  const radius = height / 2;
   const id = useId().replace(/:/g, "");
+  const pace = bar.pacePercent;
+  const progress = {
+    role: "progressbar",
+    "aria-label": label,
+    "aria-valuenow": bar.valuePercent,
+    "aria-valuemin": 0,
+    "aria-valuemax": 100,
+    "aria-valuetext": bar.valueText,
+  };
+  if (inlineValue !== undefined) {
+    return (
+      <div className="menu-metric__gauge" {...progress} aria-description={paceHint ?? undefined}>
+        <span className="menu-metric__gauge-fill" style={{ width: `${bar.fillPercent}%` }} />
+        {pace != null && (
+          <span
+            className="menu-metric__gauge-pace"
+            data-deficit={bar.paceDeficit}
+            style={{ left: `clamp(1px, ${pace}%, 100% - 1px)` }}
+            title={paceHint ?? undefined}
+          />
+        )}
+        {inlineValue && <span className="menu-metric__gauge-value">{inlineValue}</span>}
+      </div>
+    );
+  }
+
+  const radius = height / 2;
   const warnings = bar.markers.filter((marker) => marker.kind === "warning").map((marker) => marker.percent);
   const workdays = bar.markers.filter((marker) => marker.kind === "workday").map((marker) => marker.percent);
-  const pace = bar.pacePercent;
   const highContrastTicks = bar.workdayTickStyle === "high_contrast";
   return (
     <svg
       className="menu-metric__progress"
       width="100%"
       height={height}
-      role="progressbar"
-      aria-label={label}
-      aria-valuenow={bar.valuePercent}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuetext={bar.valueText}
+      {...progress}
     >
       {warnings.length > 0 && <CutMask id={`${id}-warnings`} cuts={warnings} width={WARNING_CUT} height={height} />}
       {pace != null && <CutMask id={`${id}-pace`} cuts={[pace]} width={PACE_CUT} height={height} />}

@@ -318,10 +318,8 @@ export function useTrayPanelController(state: BootstrapState) {
     ],
   );
 
-  const { layoutReady, requestLayout } = useTrayPanelLayout({
+  const { layoutReady } = useTrayPanelLayout({
     canMeasure: hasLoadedCache || sorted.length > 0,
-    denseOverview: expectsDenseOverview,
-    detailMode: selectedProviderId !== null,
     layoutKey,
     zoom: trayScale,
     baseWidth: panelWidth,
@@ -419,7 +417,6 @@ export function useTrayPanelController(state: BootstrapState) {
     setGridExpanded,
     visibleProviders,
     layoutReady,
-    requestLayout,
     footerGroups,
     statusLine,
     updateState,

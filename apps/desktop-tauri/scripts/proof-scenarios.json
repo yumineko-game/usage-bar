@@ -1,12 +1,39 @@
 {
   "scenarios": [
     {
+      "name": "flyout-japanese-dark",
+      "query": "window=flyout&fixture=japanese-quotas&theme=dark",
+      "size": [310, 520],
+      "steps": [
+        { "expectText": ["5時間", "1週間", "更新", "設定"] },
+        { "expectNoText": ["Session", "Weekly", "Cost", "Usage & Spend", "Conversations", "Resets in"] },
+        { "expectSelector": ".menu-metric__title + .menu-metric__gauge:has(.menu-metric__gauge-pace) + .menu-metric__reset" },
+        { "expectSelector": ".menu-surface--tray:not(:has(.menu-metric__progress-workday, .menu-metric__progress-warning))" },
+        { "expectStyle": { "selector": ".menu-surface--tray", "property": "color-scheme", "value": "dark" } },
+        { "expectStyle": { "selector": ".menu-surface--tray", "property": "border-radius", "value": "0px" } },
+        { "expectStyle": { "selector": ".menu-metric__gauge", "property": "height", "value": "18px" } },
+        { "expectNoOverflow": ".menu-metric__reset" },
+        { "screenshot": "flyout-japanese-dark", "clip": "panel" }
+      ]
+    },
+    {
+      "name": "flyout-japanese-auto-light",
+      "query": "window=flyout&fixture=japanese-quotas&theme=auto&system=light",
+      "size": [280, 520],
+      "steps": [
+        { "expectTheme": "light" },
+        { "expectStyle": { "selector": ".menu-surface--tray", "property": "color-scheme", "value": "light" } },
+        { "expectNoOverflow": ".menu-metric__reset" },
+        { "screenshot": "flyout-japanese-auto-light", "clip": "panel" }
+      ]
+    },
+    {
       "name": "tray-default",
       "query": "window=main&fixture=default",
       "size": [310, 1032],
       "steps": [
-        { "expectText": ["Usage & Spend", "dev@example.com", "claude.user@example.com", "1 minute ago"] },
-        { "expectNoText": "1 minutes ago" },
+        { "expectText": ["dev@example.com", "claude.user@example.com", "34%", "58%"] },
+        { "expectNoText": ["Usage & Spend", "Cost", "1 minute ago"] },
         { "screenshot": "tray-default", "clip": "panel" },
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
         { "expectNoText": "dev@example.com" },
@@ -15,81 +42,16 @@
       ]
     },
     {
-      "name": "tray-claude-cost-section",
-      "query": "window=main&fixture=default",
-      "size": [310, 1032],
-      "steps": [
-        { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": ["Session (5h)", "Weekly", "Cost", "Today: $2.37", "30d cost: $71.10"] },
-        { "expectNoText": ["Latest tokens", "Top model: claude-sonnet-4"] },
-        { "screenshot": "tray-claude-cost-collapsed", "clip": "panel" },
-        { "click": { "selector": ".card-dash__toggle", "label": "Cost" } },
-        { "expectText": ["Latest tokens", "30d tokens", "Top model: claude-sonnet-4"] },
-        { "expectNoText": "Today: $2.37" },
-        { "screenshot": "tray-claude-cost-expanded", "clip": "panel" }
-      ]
-    },
-    {
       "name": "tray-classic-look",
       "query": "window=main&fixture=classic-look",
       "size": [310, 1032],
       "steps": [
-        { "expectText": ["Usage & Spend", "Refresh", "About CodexBar (v"] },
+        { "expectText": ["Refresh", "About UsageBar (v"] },
         { "expectSelector": ".menu-surface--classic" },
         { "screenshot": "tray-classic-default", "clip": "panel" },
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": ["Session (5h) 22% used", "Latest tokens", "Top model: claude-sonnet-4"] },
+        { "expectText": ["Session (5h)", "22%", "Weekly"] },
         { "screenshot": "tray-classic-claude", "clip": "panel" }
-      ]
-    },
-    {
-      "name": "tray-claude-plan-renews",
-      "query": "window=main&fixture=default",
-      "size": [310, 1032],
-      "steps": [
-        { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": ["claude.user@example.com", "Plan renews: Dec 1, 2026"] },
-        { "expectNoText": "Plan expires:" },
-        { "screenshot": "tray-claude-plan-renews", "clip": "panel" }
-      ]
-    },
-    {
-      "name": "tray-claude-plan-hidden",
-      "query": "window=main&fixture=claude-plan-hidden",
-      "size": [310, 1032],
-      "steps": [
-        { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": "claude.user@example.com" },
-        { "expectNoText": ["Plan renews", "Plan expires"] },
-        { "screenshot": "tray-claude-plan-hidden", "clip": "panel" }
-      ]
-    },
-    {
-      "name": "tray-codex-conversations",
-      "query": "window=main&fixture=codex-conversations",
-      "size": [310, 1032],
-      "steps": [
-        { "click": { "selector": ".provider-grid__item", "label": "Codex" } },
-        { "expectText": "Conversations (30d)" },
-        { "expectNoText": "Port the tray conversations list" },
-        { "screenshot": "tray-codex-conversations-collapsed", "clip": "panel" },
-        { "click": { "selector": ".card-conversations__toggle", "label": "Conversations (30d)" } },
-        { "expectText": ["Fix the parser fixture", "Session 019f...0000a002", "Port the tray conversations list", "~$0.87", "$3.12", "gpt-5-codex · 184K input · 120K cached · 9.4K output"] },
-        { "screenshot": "tray-codex-conversations-expanded", "clip": "panel" },
-        { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectNoText": ["Conversations (30d)", "Fix the parser fixture"] }
-      ]
-    },
-    {
-      "name": "tray-codex-conversations-private",
-      "query": "window=main&fixture=codex-conversations-private",
-      "size": [310, 1032],
-      "steps": [
-        { "click": { "selector": ".provider-grid__item", "label": "Codex" } },
-        { "click": { "selector": ".card-conversations__toggle", "label": "Conversations (30d)" } },
-        { "expectText": ["Session 019f...0000a001", "Session 019f...0000a002", "Session 019f...0000a003"] },
-        { "expectNoText": ["Port the tray conversations list", "Fix the parser fixture"] },
-        { "screenshot": "tray-codex-conversations-private", "clip": "panel" }
       ]
     },
     {
@@ -98,7 +60,8 @@
       "size": [310, 1032],
       "steps": [
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": ["claude.user@example.com", "Limit Reset Credits", "2 available"] },
+        { "expectText": ["claude.user@example.com", "Session (5h)", "22%"] },
+        { "expectNoText": ["Limit Reset Credits", "2 available"] },
         { "screenshot": "tray-claude-reset-credits", "clip": "panel" }
       ]
     },
@@ -108,7 +71,7 @@
       "size": [310, 1032],
       "steps": [
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": ["claude.user@example.com", "Plan renews: Dec 1, 2026"] },
+        { "expectText": ["claude.user@example.com", "Session (5h)"] },
         { "expectNoText": ["Limit Reset Credits", "2 available"] },
         { "screenshot": "tray-claude-reset-credits-hidden", "clip": "panel" }
       ]
@@ -125,24 +88,12 @@
       ]
     },
     {
-      "name": "tray-kpi-long-titles",
-      "query": "window=main&fixture=kpi-long-titles",
-      "size": [310, 1032],
-      "steps": [
-        { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "click": { "selector": ".card-dash__toggle", "label": "Cost" } },
-        { "expectText": ["Est. aktuelles Zeitfenster, Tokens insgesamt (geschaetzt)", "Latest tokens"] },
-        { "expectNoOverflow": ".card-dash__kpi-title" },
-        { "screenshot": "tray-kpi-long-titles", "clip": "panel" }
-      ]
-    },
-    {
       "name": "tray-uk-regen-countdown",
       "query": "window=main&fixture=uk-regen-countdown",
       "size": [310, 1032],
       "steps": [
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": ["Регенерує через 2 дн. 3 год"] },
+        { "expectText": ["2 дн. 3 год"] },
         { "expectNoText": ["Regenerates in", "Regenerates now"] },
         { "screenshot": "tray-uk-regen-countdown", "clip": "panel" }
       ]
@@ -241,7 +192,7 @@
       "size": [310, 1032],
       "steps": [
         { "click": { "selector": ".provider-grid__item", "label": "Cursor" } },
-        { "expectText": ["Cursor", "Weekly", "cursor.user@example.com", "10% used", "$4.47"] },
+        { "expectText": ["Cursor", "Weekly", "cursor.user@example.com", "10%"] },
         { "expectNoText": ["Grok Bot", "Auto", "API"] },
         { "screenshot": "tray-cursor-weekly", "clip": "panel" }
       ]
@@ -251,7 +202,7 @@
       "query": "window=flyout&fixture=cursor-weekly&theme=dark",
       "size": [310, 1032],
       "steps": [
-        { "expectText": ["Cursor", "Weekly", "10% used", "$4.47"] },
+        { "expectText": ["Cursor", "Weekly", "10%"] },
         { "expectNoText": ["Grok Bot", "Auto", "API"] },
         { "screenshot": "flyout-cursor-weekly", "clip": "panel" }
       ]
@@ -359,9 +310,12 @@
       "query": "window=settings&tab=about&theme=dark",
       "size": [880, 620],
       "steps": [
-        { "expectText": "Acknowledgements" },
+        { "expectText": ["UsageBar", "Acknowledgements"] },
+        { "click": { "selector": "button", "label": "Update from GitHub" } },
+        { "expectText": ["You're up to date!"] },
+        { "screenshot": "settings-about-usagebar" },
         { "click": { "selector": ".settings-link-row span", "label": "Acknowledgements" } },
-        { "expectText": ["CodexBar is built with these open-source projects.", "tauri", "react", "codexcontrol"] },
+        { "expectText": ["UsageBar is built with these open-source projects.", "tauri", "react", "codexcontrol"] },
         { "screenshot": "settings-about-acknowledgements" },
         { "click": { "selector": ".acknowledgement__name", "label": "tauri" } },
         { "expectText": ["Apache License", "https://github.com/tauri-apps/tauri"] },
@@ -455,31 +409,6 @@
       ]
     },
     {
-      "name": "tray-openai-live-spend",
-      "query": "window=main&fixture=openai-live-spend",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["OpenAI API", "Tokens per minute", "Live", "Spend"] },
-        { "click": { "selector": "button", "label": "Live" } },
-        { "expectSelector": ".openai-live-spend[data-mode=\"live\"] [data-testid=\"openai-spend-layer\"][aria-hidden=\"true\"]" },
-        { "screenshot": "tray-openai-live", "clip": "panel" },
-        { "click": { "selector": ".openai-tpm__chart", "label": "Tokens per minute" } },
-        { "expectText": "requests" },
-        { "expectSelector": "[data-testid=\"openai-live-layer\"] rect.openai-tpm__bar--selected" },
-        { "screenshot": "tray-openai-live-inspect", "clip": "panel" },
-        { "key": "Escape" },
-        { "expectNoCall": { "cmd": "dismiss_tray_panel" } },
-        { "expectSelector": ".tray-panel-reveal--ready" },
-        { "click": { "selector": "button", "label": "Spend" } },
-        { "expectText": "Daily spend · Last 30 days" },
-        { "expectSelector": ".openai-live-spend[data-mode=\"spend\"] [data-testid=\"openai-live-layer\"][aria-hidden=\"true\"]" },
-        { "click": { "selector": ".openai-tpm__chart", "label": "Daily spend · Last 30 days" } },
-        { "expectText": ": $" },
-        { "expectSelector": "[data-testid=\"openai-spend-layer\"] rect.openai-tpm__bar--selected" },
-        { "screenshot": "tray-openai-spend-inspect", "clip": "panel" }
-      ]
-    },
-    {
       "name": "settings-claude-desktop-cookies",
       "query": "window=settings&tab=providers:claude&fixture=default&theme=dark",
       "size": [880, 620],
@@ -524,16 +453,6 @@
       ]
     },
     {
-      "name": "flyout-vercel-budget",
-      "query": "window=flyout&fixture=vercel&theme=dark",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["Vercel", "Personal budget", "Spend", "Limit", "Remaining", "$58.00"] },
-        { "expectNoText": ["Available balance", "in reserve", "Lasts until reset"] },
-        { "screenshot": "flyout-vercel-budget", "clip": "panel" }
-      ]
-    },
-    {
       "name": "settings-vercel-budget",
       "query": "window=settings&tab=providers:vercel&fixture=vercel&theme=dark",
       "size": [880, 1400],
@@ -563,25 +482,6 @@
         { "expectNoText": "Vercel Team ID is invalid" },
         { "expectSelector": "input[placeholder=\"team_...\"]:not([aria-invalid])" },
         { "screenshot": "settings-vercel-team-id-error-cleared" }
-      ]
-    },
-    {
-      "name": "flyout-kimi-bonus-credits",
-      "query": "window=flyout&fixture=kimi-bonus-credits&theme=dark",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["Kimi", "Total usage", "Bonus credits", "Invite to Earn Credit", "75% left", "Expires Dec 31, 2026", "Welcome Credit", "40% left"] },
-        { "expectNoText": ["Reservation Bonus", "Expired grant"] },
-        { "screenshot": "flyout-kimi-bonus-credits", "clip": "panel" }
-      ]
-    },
-    {
-      "name": "flyout-copilot-daily-target",
-      "query": "window=flyout&fixture=copilot-daily-target&theme=dark",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["Copilot", "Premium", "≈ 2.9% / day to last until reset"] },
-        { "screenshot": "flyout-copilot-daily-target", "clip": "panel" }
       ]
     },
     {

@@ -9,8 +9,10 @@ import type { TabProps } from "../settingsTabs";
 import codexbarIcon from "../../../assets/codexbar-icon.png";
 import AcknowledgementsView from "./AcknowledgementsView";
 
-const REPO_URL = "https://github.com/nesszer/Win-CodexBar";
-const SUBMIT_ISSUE_URL = `${REPO_URL}/issues/new?labels=bug&template=bug_report.yml`;
+const REPO_URL = "https://github.com/yumineko-game/usage-bar";
+// The fork has Issues disabled. Bug reports still go to the Windows parent project.
+const SUBMIT_ISSUE_URL =
+  "https://github.com/nesszer/Win-CodexBar/issues/new?labels=bug&template=bug_report.yml";
 
 const ABOUT_LINKS: ReadonlyArray<{ labelKey: LocaleKey; url: string }> = [
   {
@@ -35,7 +37,7 @@ export default function AboutTab({ settings, set, saving }: TabProps) {
   const { t } = useLocale();
   const ctl = { settings, set, saving };
   const [appInfo, setAppInfo] = useState<AppInfoBridge | null>(null);
-  const { updateState, checkNow, download, apply, openRelease } =
+  const { updateState, installLatest, openRelease } =
     useUpdateState();
   const [hasChecked, setHasChecked] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -46,8 +48,7 @@ export default function AboutTab({ settings, set, saving }: TabProps) {
   }, []);
 
   const handleCheck = () => {
-    setHasChecked(true);
-    checkNow();
+    void installLatest().then(() => setHasChecked(true));
   };
 
   const openAboutLink = (url: string) => {
@@ -135,7 +136,7 @@ export default function AboutTab({ settings, set, saving }: TabProps) {
           </span>
           <button
             type="button"
-            className="credential-btn"
+            className="credential-btn credential-btn--primary"
             disabled={isBusy}
             onClick={handleCheck}
           >
@@ -153,15 +154,7 @@ export default function AboutTab({ settings, set, saving }: TabProps) {
                 updateState.version ?? "",
               )}
             </span>
-            {updateState.canDownload ? (
-              <button
-                type="button"
-                className="credential-btn credential-btn--primary"
-                onClick={download}
-              >
-                {t("BannerDownloadButton")}
-              </button>
-            ) : (
+            {!updateState.canDownload && (
               <button type="button" className="credential-btn" onClick={openRelease}>
                 {t("BannerViewRelease")}
               </button>
@@ -183,13 +176,7 @@ export default function AboutTab({ settings, set, saving }: TabProps) {
           <div className="settings-group__row settings-group__row--split">
             <span className="about-update-msg">{t("UpdateReady")}</span>
             {updateState.canApply ? (
-              <button
-                type="button"
-                className="credential-btn credential-btn--primary"
-                onClick={apply}
-              >
-                {t("BannerInstallRestart")}
-              </button>
+              <span className="about-update-msg">{updateState.version}</span>
             ) : (
               <button type="button" className="credential-btn" onClick={openRelease}>
                 {t("BannerViewRelease")}
@@ -258,7 +245,7 @@ export default function AboutTab({ settings, set, saving }: TabProps) {
           className="about-link about-link--inline"
           onClick={() => openAboutLink("https://github.com/steipete/CodexBar")}
         >
-          {t("AppName")}
+          CodexBar
         </button>
         {" "}{copyrightAfter}
       </p>

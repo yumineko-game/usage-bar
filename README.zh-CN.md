@@ -1,4 +1,4 @@
-# Win-CodexBar
+# UsageBar
 
 [English](./README.md) | [简体中文](./README.zh-CN.md) | [繁體中文（臺灣）](./README.zh-TW.md) | [日本語](./README.ja-JP.md) | [한국어](./README.ko-KR.md) | [Español mexicano](./README.es-MX.md) | [Português (Brasil)](./README.pt-BR.md) | [Türkçe](./README.tr-TR.md)
 
@@ -111,8 +111,8 @@
 
 ```powershell
 # 前置要求：Node.js + pnpm — Rust 和 MinGW 将自动安装
-git clone https://github.com/Finesssee/Win-CodexBar.git
-cd Win-CodexBar
+git clone https://github.com/yumineko-game/usage-bar.git
+cd usage-bar
 .\scripts\dev.ps1
 ```
 
@@ -124,6 +124,8 @@ cd Win-CodexBar
 ```
 
 ## 下载
+
+可按上文的步骤从源码构建 UsageBar。本节的 Winget 软件包和下载由上游 Win-CodexBar 项目发布。
 
 使用 Windows Package Manager 安装：
 

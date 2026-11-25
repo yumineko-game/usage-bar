@@ -23,7 +23,7 @@ describe("tray card stylesheet", () => {
     expect(selectors.length).toBeGreaterThan(20);
     for (const group of selectors) {
       for (const selector of group.split(",")) {
-        expect(selector.trim(), group).toMatch(/^\.menu-surface--tray\b/);
+        expect(selector.trim(), group).toMatch(/^(?:\[data-theme="dark"\] )?\.menu-surface--tray\b|^\.tray-panel-reveal\b/);
       }
     }
   });
@@ -101,14 +101,6 @@ describe("tray card stylesheet", () => {
     expect(ruleBlock(tray, ".menu-surface--tray .provider-grid__weekly-track")).toContain(
       "height: 2px",
     );
-  });
-
-  it("restyles the Overview spend summary as headline, 17px total and captions", () => {
-    expect(ruleBlock(tray, ".menu-surface--tray .overview-spend")).toContain("padding: 10px 20px");
-    const total = ruleBlock(tray, ".menu-surface--tray .overview-spend__total");
-    expect(total).toContain("font-size: 17px");
-    expect(total).toContain("font-weight: 700");
-    expect(total).toContain("tabular-nums");
   });
 });
 
@@ -197,11 +189,11 @@ describe("modern tray stylesheet", () => {
     }
   });
 
-  it("sets the surface on a tinted fill with no frame and the larger type scale", () => {
+  it("sets the modern surface on a tinted fill with a hairline frame", () => {
     const surface = ruleBlock(modern, MODERN);
     expect(surface).toContain("background: var(--mac-panel-fill)");
-    expect(surface).toContain("border: 0");
-    expect(surface).toContain("--mac-pad-x: 16px");
+    expect(surface).toContain("border: 1px solid var(--mac-divider)");
+    expect(surface).toContain("--mac-pad-x: 12px");
     expect(surface).toContain("--mac-text-body-medium: 600 14px/18px");
   });
 
@@ -233,18 +225,6 @@ describe("modern tray stylesheet", () => {
     expect(ruleBlock(modern, `${first} .provider-grid__label`)).toContain("overflow: visible");
   });
 
-  it("sizes the modern quota bar at 8px so the shared 6px rule does not clip it", () => {
-    expect(ruleBlock(modern, `${MODERN} .menu-metric__progress`)).toContain("height: 8px");
-    expect(tray).not.toMatch(/\.menu-metric__progress\s*\{/);
-  });
-
-  it("puts the percent left and the reset right on the line under the bar", () => {
-    expect(ruleBlock(modern, `${MODERN} .menu-metric__head`)).toContain("flex-wrap: nowrap");
-    expect(ruleBlock(modern, `${MODERN} .menu-metric__head .menu-metric__reset`)).toContain(
-      "margin-left: auto",
-    );
-  });
-
   it("styles the Cost section as a toggle row with a rotating chevron", () => {
     expect(ruleBlock(modern, `${MODERN} .card-dash__toggle`)).toContain(
       "justify-content: space-between",
@@ -262,9 +242,5 @@ describe("modern tray stylesheet", () => {
     expect(ruleBlock(modern, `${MODERN} .menu-surface__footer-shortcut`)).toContain(
       "display: none",
     );
-  });
-
-  it("keeps the Overview spend summary padded to the 16px card edge", () => {
-    expect(ruleBlock(modern, `${MODERN} .overview-spend`)).toContain("padding: 10px 16px");
   });
 });

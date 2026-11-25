@@ -129,7 +129,7 @@ These need the user's confirmation, because they are hard to undo or affect shar
 - Always pass the explicit `--repo owner/repo`. Never rely on the current remote or on a PR or issue number alone.
 - Before any mutation, read the target back from that same repo and check that the returned owner/repo or URL matches exactly. Abort on any mismatch.
 - For object mutations (PR, issue, release), bind both the exact `owner/repo` and the exact number or tag. Use repo-only verification only for creates, where the object doesn't exist yet.
-- `gh-safe.sh` allows three repos: `nesszer/Win-CodexBar`, `Finesssee/winget-pkgs` (the fork that receives the manifest branch) and `microsoft/winget-pkgs` (where the Winget PR opens).
+- `gh-safe.sh` allows `nesszer/Win-CodexBar`, `Finesssee/winget-pkgs` (the fork that receives the manifest branch), `microsoft/winget-pkgs` (where the Winget PR opens), and `yumineko-game/usage-bar` for version tags and releases.
 
 ## Runtime and tooling
 

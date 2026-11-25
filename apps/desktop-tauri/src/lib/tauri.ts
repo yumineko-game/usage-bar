@@ -226,6 +226,10 @@ export function checkForUpdates(): Promise<UpdateStatePayload> {
   return invoke<UpdateStatePayload>("check_for_updates");
 }
 
+export function installGitHubUpdate(): Promise<UpdateStatePayload> {
+  return invoke<UpdateStatePayload>("install_github_update");
+}
+
 export function downloadUpdate(): Promise<UpdateStatePayload> {
   return invoke<UpdateStatePayload>("download_update");
 }

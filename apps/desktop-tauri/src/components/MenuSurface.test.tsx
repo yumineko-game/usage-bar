@@ -83,7 +83,7 @@ describe("MenuSurface footer", () => {
       [
         { id: "refresh", label: "Refresh", shortcut: "Ctrl+R", onClick: noop },
         { id: "settings", label: "Settings...", shortcut: "Ctrl+,", onClick: noop },
-        { id: "about", label: "About CodexBar (v0.70.0)", onClick: noop },
+        { id: "about", label: "About UsageBar (v0.70.0)", onClick: noop },
         { id: "quit", label: "Quit", shortcut: "Ctrl+Q", onClick: noop },
       ],
     ]);
@@ -96,11 +96,11 @@ describe("MenuSurface footer", () => {
       "Status Page",
       "RefreshCtrl+R",
       "Settings...Ctrl+,",
-      "About CodexBar (v0.70.0)",
+      "About UsageBar (v0.70.0)",
       "QuitCtrl+Q",
     ]);
     expect(
-      Array.from(nav.children).map((child) =>
+      Array.from(nav.querySelectorAll(".menu-surface__footer-sep, button")).map((child) =>
         child.classList.contains("menu-surface__footer-sep") ? "sep" : child.textContent,
       ),
     ).toEqual([
@@ -111,7 +111,7 @@ describe("MenuSurface footer", () => {
       "sep",
       "RefreshCtrl+R",
       "Settings...Ctrl+,",
-      "About CodexBar (v0.70.0)",
+      "About UsageBar (v0.70.0)",
       "QuitCtrl+Q",
     ]);
   });
@@ -125,7 +125,7 @@ describe("MenuSurface footer", () => {
         { id: "statusPage", label: "Status Page", onClick: noop },
         { id: "refresh", label: "Refresh", shortcut: "Ctrl+R", onClick: noop },
         { id: "settings", label: "Settings...", shortcut: "Ctrl+,", onClick: noop },
-        { id: "about", label: "About CodexBar (v0.70.0)", onClick: noop },
+        { id: "about", label: "About UsageBar (v0.70.0)", onClick: noop },
         { id: "quit", label: "Quit", shortcut: "Ctrl+Q", onClick: noop },
       ],
     ]);
@@ -149,7 +149,7 @@ describe("MenuSurface footer", () => {
           { id: "dashboard", label: "Usage Dashboard", onClick: noop },
           { id: "refresh", label: "Refresh", shortcut: "Ctrl+R", onClick: noop },
           { id: "settings", label: "Settings...", shortcut: "Ctrl+,", onClick: noop },
-          { id: "about", label: "About CodexBar", onClick: noop },
+          { id: "about", label: "About UsageBar", onClick: noop },
           { id: "quit", label: "Quit", shortcut: "Ctrl+Q", onClick: noop },
         ],
       ],

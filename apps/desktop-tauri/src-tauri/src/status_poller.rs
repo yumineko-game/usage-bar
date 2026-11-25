@@ -579,8 +579,8 @@ mod tests {
         let lines = incident_lines(&cache, &on);
         assert_eq!(lines, ["Claude: Major outage", "Copilot: Maintenance"]);
         assert_eq!(
-            insert_after_title("CodexBar\nClaude: 40% left".to_string(), &lines),
-            "CodexBar\nClaude: Major outage\nCopilot: Maintenance\nClaude: 40% left"
+            insert_after_title("UsageBar\nClaude: 40% left".to_string(), &lines),
+            "UsageBar\nClaude: Major outage\nCopilot: Maintenance\nClaude: 40% left"
         );
 
         on.ui_language = Language::Japanese;

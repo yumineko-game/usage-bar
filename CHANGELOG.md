@@ -1,3 +1,9 @@
+## UsageBar 0.71.0
+
+- Install verified GitHub releases directly from Settings > About.
+- Try the local working tree with the Windows preview launcher.
+- Includes the UsageBar tray and float bar layout changes and Windows browser integration fixes.
+
 ## [Unreleased]
 
 ### Improved

@@ -1,6 +1,6 @@
 # Architecture
 
-This page shows how Win-CodexBar is put together: the crates, the windows, and how usage data and settings move between them. It covers the Windows port only. The upstream `docs/architecture.md` describes Swift modules, WidgetKit and Sparkle, which this port doesn't use.
+This page shows how UsageBar is put together: the crates, the windows, and how usage data and settings move between them. It covers the Windows port only. The upstream `docs/architecture.md` describes Swift modules, WidgetKit and Sparkle, which this port doesn't use.
 
 ## Crates and folders
 
@@ -35,7 +35,7 @@ The app runs one hidden window and opens the others on demand.
 
 The tray panel is the only dashboard layout. Tray left-click, **Pop Out Dashboard** in the tray menu, the global shortcut, app launch and a second launch of the app all open the `flyout` window. `shell/flyout_window.rs` owns it.
 
-- It is a light panel in the Mac style. It is 310 px wide, times the **Panel scale** setting, and its height fits its content.
+- Its square frame fits the usage rows and follows the app theme, including the Windows app theme under `auto`. The default width is 310 px before **Panel scale**. Each quota row shows its period, percentage, pace marker when available, and reset time.
 - It paints `#DEDEE2` before the page loads, so it never flashes white.
 - The panel opens next to the tray. It has no native resize border, but the handles on its left and right edges drag its width. With **Settings > Menu > Movable panel** on, a strip along its top drags it elsewhere; `shell/flyout_placement.rs` records the spot when the native move loop ends (so the panel's own re-anchoring never counts as a move), later opens and content-driven resizes keep the panel there, clamped into the work area it overlaps most, and double-clicking the strip (or the button under Settings > Menu > Movable panel) puts it back next to the tray.
 - It closes when it loses focus. Proof mode, `CODEXBAR_START_VISIBLE` and dragging a provider tab to reorder keep it open, as does a mouse button held on a movable panel (a native move blurs the WebView before the drag begins). A movable panel the user moved away from the tray stays open like a window: it can be covered, and closes from the tray icon, Escape, or by being put back next to the tray.

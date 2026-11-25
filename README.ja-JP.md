@@ -1,16 +1,16 @@
-# Win-CodexBar
+# UsageBar
 
 [English](./README.md) | [简体中文](./README.zh-CN.md) | [繁體中文（臺灣）](./README.zh-TW.md) | [日本語](./README.ja-JP.md) | [한국어](./README.ko-KR.md) | [Español mexicano](./README.es-MX.md) | [Português (Brasil)](./README.pt-BR.md) | [Türkçe](./README.tr-TR.md)
 
-Win-CodexBar は、複数の AI コーディングツールの使用量を Windows のシステムトレイから確認できるデスクトップアプリです。[CodexBar](https://github.com/steipete/CodexBar) の考え方を、Tauri + React のデスクトップシェルと共有 Rust バックエンドで Windows 向けに移植しています。
+UsageBar は、複数の AI コーディングツールの使用量を Windows のシステムトレイから確認できるデスクトップアプリです。[CodexBar](https://github.com/steipete/CodexBar) の考え方を、Tauri + React のデスクトップシェルと共有 Rust バックエンドで Windows 向けに移植しています。
 
 <table>
   <tr>
     <td width="36%" align="center">
-      <img src="docs/images/tray-panel.png" alt="プロバイダー使用量カードを表示する Win-CodexBar のトレイパネル"/>
+      <img src="docs/images/tray-panel.png" alt="プロバイダー使用量カードを表示する UsageBar のトレイパネル"/>
     </td>
     <td width="64%" align="center">
-      <img src="docs/images/settings-providers.png" alt="Win-CodexBar のプロバイダー設定画面"/>
+      <img src="docs/images/settings-providers.png" alt="UsageBar のプロバイダー設定画面"/>
     </td>
   </tr>
 </table>
@@ -27,17 +27,7 @@ Win-CodexBar は、複数の AI コーディングツールの使用量を Windo
 
 ## インストール
 
-Windows Package Manager でインストールできます。
-
-```powershell
-winget install Finesssee.Win-CodexBar
-```
-
-または [GitHub Releases](https://github.com/Finesssee/Win-CodexBar/releases) から最新のインストーラー / ポータブル版をダウンロードしてください。
-
-- インストーラー: `CodexBar-<version>-Setup.exe`
-- ポータブル: `CodexBar-<version>-portable.exe`
-- チェックサム: 各リリースに `.sha256` ファイルが含まれます
+[UsageBar の GitHub Releases](https://github.com/yumineko-game/usage-bar/releases/latest) から `UsageBar-<version>-Setup.exe` をダウンロードして実行してください。ポータブル版と SHA-256 チェックサムも同じページにあります。
 
 ## 初回起動
 
@@ -53,12 +43,17 @@ Claude では、Claude の設定ページと同じ使用量に近づけるため
 
 現在の変更履歴は [CHANGELOG.md](CHANGELOG.md) を参照してください。対応プロバイダーの一覧は [English README](./README.md#supported-providers) にあります。
 
+## Windows で更新・ローカル試用
+
+- **設定 → このアプリについて → GitHub から更新** を押すと、更新の確認から取得、SHA-256 照合、インストールと再起動まで進みます。
+- [ローカル版を試す](scripts/usagebar-preview.cmd) は、未コミットの変更を含めて手元のソースをビルドし、この PC で起動します。ビルド成功後に実行中のインストール版を一時終了し、ローカル版をトレイから終了するとインストール版を再起動します。アプリの設定は両方で共通です。初回は依存関係の準備とビルドに時間がかかります。
+
 ## ソースからビルド
 
 ```powershell
 # 前提: Node.js + pnpm。Rust と MinGW は必要に応じてスクリプトがインストールします。
-git clone https://github.com/Finesssee/Win-CodexBar.git
-cd Win-CodexBar
+git clone https://github.com/yumineko-game/usage-bar.git
+cd usage-bar
 .\scripts\dev.ps1
 ```
 

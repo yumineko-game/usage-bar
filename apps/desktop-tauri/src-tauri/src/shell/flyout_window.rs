@@ -122,7 +122,7 @@ fn open_with_anchor(
     let url = WebviewUrl::App("index.html?window=flyout".into());
 
     let builder = tauri::WebviewWindowBuilder::new(app, FLYOUT_LABEL, url)
-        .title("CodexBar")
+        .title("UsageBar")
         .inner_size(props.width, props.height)
         .decorations(props.decorations)
         .shadow(false)
@@ -544,7 +544,7 @@ mod tests {
     fn tray_panel_window_properties_still_the_single_source_for_flyout_shape() {
         let props = SurfaceMode::TrayPanel.window_properties();
         assert_eq!(props.width, 310.0);
-        assert_eq!(props.height, 776.0);
+        assert_eq!(props.height, 200.0);
         assert_eq!(props.min_width, None);
         assert_eq!(props.min_height, None);
         assert!(!props.resizable);

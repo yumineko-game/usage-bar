@@ -35,7 +35,7 @@ export function proofUpdateState(): UpdateStatePayload {
 
 export function proofAppInfo(version: string): AppInfoBridge {
   return {
-    name: "CodexBar",
+    name: "UsageBar",
     version,
     buildNumber: "proof",
     buildDate: "2026-01-01",

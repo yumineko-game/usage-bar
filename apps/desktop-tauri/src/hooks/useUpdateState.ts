@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { UpdateStatePayload } from "../types/bridge";
 import {
   checkForUpdates,
+  installGitHubUpdate,
   downloadUpdate,
   applyUpdate,
   dismissUpdate,
@@ -15,6 +16,8 @@ export interface UseUpdateStateResult {
   updateState: UpdateStatePayload;
   /** Trigger an update check manually. */
   checkNow: () => void;
+  /** Check for a GitHub release and install it if a verified installer is available. */
+  installLatest: () => Promise<void>;
   /** Start downloading an available update. */
   download: () => void;
   /** Launch the downloaded installer and exit. */
@@ -52,6 +55,14 @@ export function useUpdateState(): UseUpdateStateResult {
       .catch(() => {});
   }, []);
 
+  const installLatest = useCallback(async () => {
+    try {
+      setUpdateState(await installGitHubUpdate());
+    } catch (error) {
+      setUpdateState({ ...IDLE_PAYLOAD, status: "error", error: String(error) });
+    }
+  }, []);
+
   const download = useCallback(() => {
     downloadUpdate()
       .then(setUpdateState)
@@ -86,5 +97,5 @@ export function useUpdateState(): UseUpdateStateResult {
 
   useTauriEvent<UpdateStatePayload>("update-state-changed", (event) => setUpdateState(event.payload), []);
 
-  return { updateState, checkNow, download, apply, dismiss, openRelease };
+  return { updateState, checkNow, installLatest, download, apply, dismiss, openRelease };
 }

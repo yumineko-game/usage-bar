@@ -4,7 +4,6 @@ import { useLocale } from "../../../hooks/useLocale";
 import { Field, Select, SettingsGroup, Toggle } from "../../../components/FormControls";
 import type {
   CostSummaryDisplayStyle,
-  OverviewLayout,
   WorkdayTickStyle,
 } from "../../../types/bridge";
 import type { TabProps } from "../settingsTabs";
@@ -204,18 +203,6 @@ export default function MenuTab({ settings, set, saving }: TabProps) {
             checked={settings.highlightMenuCardsOnHover ?? true}
             disabled={saving}
             onChange={(v) => set({ highlightMenuCardsOnHover: v })}
-          />
-        </Field>
-        <Field label={t("OverviewLayoutLabel")} description={t("OverviewLayoutHelper")}>
-          <Select
-            variant="menu"
-            value={settings.overviewLayout}
-            disabled={saving}
-            options={[
-              { value: "detailed", label: t("OverviewLayoutDetailed") },
-              { value: "compact", label: t("OverviewLayoutCompact") },
-            ]}
-            onChange={(v) => set({ overviewLayout: v as OverviewLayout })}
           />
         </Field>
         <Field label={t("ShowAllTokenAccountsLabel")} description={t("ShowAllTokenAccountsHelper")}>

@@ -4,17 +4,99 @@
  * scoped to the tray panel; Settings and the float bar keep their own styles.
  */
 
-/* ── Card frame: 20 px sides, 6 px top and bottom, blocks stacked by margins ── */
+.tray-panel-reveal *,
+.tray-panel-reveal *::before,
+.tray-panel-reveal *::after {
+  /* The tray inherits controls and pseudoelements from several shared stylesheets. */
+  border-radius: 0 !important;
+}
+
+.menu-surface--tray.menu-surface--classic {
+  --mac-pad-x: 12px;
+  --mac-row-pl: var(--mac-pad-x);
+  --mac-gap-header: 5px;
+  --mac-after-divider: 5px;
+  --mac-metric-gap: 8px;
+}
+
+[data-theme="dark"] .menu-surface--tray {
+  --mac-panel-fill: linear-gradient(160deg, #252b36, #1c2028);
+  --mac-panel-highlight: none;
+  --mac-panel-border: #474f5d;
+  --mac-text: #f2f4f8;
+  --mac-text-2: #b8c1d0;
+  --mac-text-3: #98a4b6;
+  --mac-track: #272e3a;
+  --mac-divider: #4c5668;
+  --mac-separator: #3c4553;
+  --mac-error: #ff8f85;
+  --surface-tint-rgb: 255, 255, 255;
+  --gauge-fill-base: #344256;
+  --gauge-text: #fff;
+  --gauge-pace: #b2d2ff;
+  --gauge-deficit: #ffc3aa;
+}
+
+[data-theme="dark"] .menu-surface--tray .provider-grid__item .provider-icon {
+  filter: brightness(0) invert(1);
+}
+
+[data-theme="dark"] .menu-surface--tray .provider-grid__item--active .provider-icon {
+  color: var(--mac-selection-text);
+  filter: none;
+}
+
+[data-theme="dark"] .menu-surface--tray .provider-grid__item:not(.provider-grid__item--active):hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Card frame ── */
 .menu-surface--tray .menu-card {
   gap: 0;
-  padding: var(--mac-pad-header-y) var(--mac-pad-x);
+  padding: 5px var(--mac-pad-x);
 }
 
-.menu-surface--tray .menu-card--with-details {
-  padding: var(--mac-section-pt) var(--mac-pad-x) var(--mac-section-pb);
+.menu-surface--tray .menu-stack {
+  gap: 0;
 }
 
-/* Divider under the header: 6 above, 16 below (`postHeaderDividerContentSpacing`). */
+.menu-surface--tray .menu-surface__footer-actions {
+  display: flex;
+  gap: 2px;
+  padding: 0 var(--mac-pad-x);
+}
+
+.menu-surface--tray .menu-surface__footer-actions .menu-surface__footer-row {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: center;
+  padding: 0 4px;
+  font-size: 11px;
+}
+
+.menu-surface--tray .menu-surface__footer-actions .menu-surface__footer-row::before {
+  inset-inline: 0;
+}
+
+.menu-surface--tray .menu-surface__footer-actions .menu-surface__footer-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.menu-surface--tray .menu-surface__footer-actions .menu-surface__footer-icon,
+.menu-surface--tray .menu-surface__footer-actions .menu-surface__footer-shortcut {
+  display: none;
+}
+
+.menu-surface--tray.menu-surface--classic .menu-surface__footer-sep,
+.menu-surface--tray.menu-surface--classic .provider-grid__divider,
+.menu-surface--tray.menu-surface--classic .menu-stack__sep {
+  margin: 2px var(--mac-pad-x);
+}
+
+/* Divider under the header. */
 .menu-surface--tray .menu-card__divider {
   flex: none;
   height: 1px;
@@ -22,10 +104,13 @@
   margin: var(--mac-gap-header) 0 var(--mac-after-divider);
 }
 
-.menu-surface--tray .menu-card__content,
-.menu-surface--tray .menu-card__metrics {
+.menu-surface--tray .menu-card__content {
   gap: var(--mac-metric-gap);
   padding-bottom: 0;
+}
+
+.menu-surface--tray .menu-card__metrics {
+  gap: 3px;
 }
 
 /* Separator before the extra usage block. */
@@ -135,39 +220,78 @@
 }
 
 /* ── Rate-window rows (`MenuCardMetricRow`) ── */
-.menu-surface--tray .menu-metric {
-  gap: var(--mac-metric-inner);
+.menu-surface--tray .menu-metric--tray {
+  display: grid;
+  grid-template-columns: clamp(46px, 17%, 96px) minmax(48px, 1fr) clamp(62px, 23%, 118px);
+  align-items: center;
+  min-height: 18px;
+  gap: 0 7px;
 }
 
 .menu-surface--tray .menu-metric__title {
   min-width: 0;
-  font: var(--mac-text-body-medium);
+  font: 500 11px/15px var(--mac-font);
   color: var(--mac-text);
-  text-align: left;
-  text-align-last: auto;
-}
-
-.menu-surface--tray .menu-metric__head {
-  column-gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .menu-surface--tray .menu-metric__reset,
-.menu-surface--tray .menu-metric__meta,
-.menu-surface--tray .menu-metric__status,
-.menu-surface--tray .menu-metric__detail,
-.menu-surface--tray .menu-metric__pct {
-  font: var(--mac-text-footnote);
+.menu-surface--tray .menu-metric__status {
+  min-width: 0;
+  font: 400 11px/14px var(--mac-font);
+  font-variant-numeric: tabular-nums;
   color: var(--mac-text-2);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-.menu-surface--tray .menu-metric__pct {
-  color: var(--mac-text);
+.menu-surface--tray .menu-metric__status:last-child {
+  grid-column: 2 / -1;
 }
 
-.menu-surface--tray .menu-metric__exhausted {
-  font: var(--mac-text-footnote);
-  font-weight: 600;
-  color: var(--mac-error);
+.menu-surface--tray .menu-metric__reset {
+  display: block;
+  max-width: none;
+  text-align: right;
+}
+
+.menu-surface--tray .menu-metric__gauge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 18px;
+  box-sizing: border-box;
+  border: 1px solid var(--mac-divider);
+  background: var(--mac-track);
+  color: var(--gauge-text, #151925);
+}
+
+.menu-surface--tray .menu-metric__gauge-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--provider-accent) 36%, var(--gauge-fill-base, #f2f4fc));
+}
+
+.menu-surface--tray .menu-metric__gauge-pace {
+  position: absolute;
+  inset-block: 1px;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--gauge-pace, #31548b);
+}
+
+.menu-surface--tray .menu-metric__gauge-pace[data-deficit="true"] {
+  background: var(--gauge-deficit, #9d3926);
+}
+
+.menu-surface--tray .menu-metric__gauge-value {
+  position: relative;
+  font: 650 11px/1 var(--mac-font);
+  font-variant-numeric: tabular-nums;
+  text-shadow: -1px 0 var(--gauge-fill-base, #f2f4fc), 1px 0 var(--gauge-fill-base, #f2f4fc);
+  pointer-events: none;
 }
 
 /* ── Key-value sections (`ProviderDetailSectionsContent`) ── */
@@ -642,39 +766,4 @@
 
 .menu-surface--tray .provider-grid__weekly-track::after {
   border-radius: 1px;
-}
-
-/* ── Overview spend summary (spec 3.2) ── */
-.menu-surface--tray .overview-spend {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 20px;
-  min-width: 0;
-}
-
-.menu-surface--tray .overview-spend__headline {
-  font: var(--mac-text-headline);
-  color: var(--mac-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.menu-surface--tray .overview-spend__range {
-  color: var(--mac-text-2);
-}
-
-.menu-surface--tray .overview-spend__total {
-  font-family: var(--mac-font);
-  font-size: 17px;
-  line-height: 22px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--mac-text);
-}
-
-.menu-surface--tray .overview-spend__caption {
-  font: var(--mac-text-caption);
-  color: var(--mac-text-2);
 }

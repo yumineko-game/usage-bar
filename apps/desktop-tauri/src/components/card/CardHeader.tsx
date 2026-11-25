@@ -97,6 +97,7 @@ export default function CardHeader({
   error,
   updatedAt,
   isRefreshing,
+  compact = false,
 }: {
   name: string;
   email: string | null;
@@ -104,11 +105,15 @@ export default function CardHeader({
   error: string | null;
   updatedAt: string | null | undefined;
   isRefreshing: boolean;
+  compact?: boolean;
 }) {
   const { t } = useLocale();
   const nowMs = useNow();
+  const subtitle = headerSubtitle(updatedAt, isRefreshing, t, nowMs);
+  const showStatus = !compact || !!error || isRefreshing || !updatedAt;
+  const tooltip = showStatus ? undefined : [subtitle, plan].filter(Boolean).join(" · ");
   return (
-    <header className="card-header">
+    <header className="card-header" title={tooltip}>
       <div className="card-header__line">
         <span className="card-header__name">{name}</span>
         {email && (
@@ -122,21 +127,21 @@ export default function CardHeader({
           </span>
         )}
       </div>
-      <div className={`card-header__line${error ? " card-header__line--error" : ""}`}>
-        {error ? (
-          <>
-            <span className="card-header__error" title={error}>
-              {error}
-            </span>
-            <CopyIconButton text={error} />
-          </>
-        ) : (
-          <span className="card-header__subtitle">
-            {headerSubtitle(updatedAt, isRefreshing, t, nowMs)}
-          </span>
-        )}
-        {plan && <span className="card-header__plan">{plan}</span>}
-      </div>
+      {showStatus && (
+        <div className={`card-header__line${error ? " card-header__line--error" : ""}`}>
+          {error ? (
+            <>
+              <span className="card-header__error" title={error}>
+                {error}
+              </span>
+              <CopyIconButton text={error} />
+            </>
+          ) : (
+            <span className="card-header__subtitle">{subtitle}</span>
+          )}
+          {plan && <span className="card-header__plan">{plan}</span>}
+        </div>
+      )}
     </header>
   );
 }

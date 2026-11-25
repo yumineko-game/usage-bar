@@ -168,6 +168,8 @@ pub struct AppState {
     /// newly-mounted frontend surfaces.
     pub claude_reconciliation: crate::commands::claude_reconciliation::ClaudeReconciliationState,
     pub update_state: UpdateState,
+    /// An explicit in-app request to install after the current download.
+    pub install_update_when_ready: bool,
     /// Full update metadata from the last successful check.
     pub update_info: Option<codexbar::updater::UpdateInfo>,
     /// Unix-ms timestamp of the last completed update check.
@@ -250,6 +252,7 @@ impl AppState {
             update_info: None,
             last_update_check_ms: None,
             installer_path: None,
+            install_update_when_ready: false,
             proof_config: None,
             seeded_provider_ids: std::collections::HashSet::new(),
             notification_manager: codexbar::notifications::NotificationManager::new(),

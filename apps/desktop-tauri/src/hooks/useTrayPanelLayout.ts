@@ -14,15 +14,12 @@ import {
 import { TRAY_PANEL_WIDTH_DEFAULT, fitTrayWidthToWorkArea } from "../lib/trayScale";
 
 const TRAY_MAX_MEASURE_HEIGHT = 920;
-const TRAY_OVERVIEW_MIN_HEIGHT = 200;
-const TRAY_DETAIL_MIN_HEIGHT = 420;
-const TRAY_DENSE_OVERVIEW_HEIGHT = 776;
+const TRAY_INITIAL_HEIGHT = 200;
+const TRAY_MIN_HEIGHT = 1;
 const TRAY_HEIGHT_SLACK = 1;
 
 export interface TrayPanelLayoutOptions {
   canMeasure: boolean;
-  denseOverview: boolean;
-  detailMode: boolean;
   layoutKey: string;
   zoom?: number;
   /** Panel width in px at 100 % scale (Settings, or a drag in progress). */
@@ -36,8 +33,6 @@ export interface TrayPanelLayout {
 
 export function useTrayPanelLayout({
   canMeasure,
-  denseOverview,
-  detailMode,
   layoutKey,
   zoom = 1,
   baseWidth = TRAY_PANEL_WIDTH_DEFAULT,
@@ -103,6 +98,7 @@ export function useTrayPanelLayout({
     for (const part of [
       surface,
       surface.querySelector(".menu-surface__body"),
+      surface.querySelector(".menu-stack"),
       surface.querySelector(".menu-surface__footer"),
     ]) {
       if (part) observer.observe(part);
@@ -113,11 +109,6 @@ export function useTrayPanelLayout({
   useEffect(() => {
     if (!canMeasure) return;
 
-    const minHeight = detailMode
-      ? TRAY_DETAIL_MIN_HEIGHT
-      : denseOverview
-        ? TRAY_DENSE_OVERVIEW_HEIGHT
-        : TRAY_OVERVIEW_MIN_HEIGHT;
     const requestedWidth = Math.round(baseWidth * zoom);
 
     const resize = async () => {
@@ -145,7 +136,7 @@ export function useTrayPanelLayout({
       const pageBody = document.body;
       const workArea = await getWorkAreaRect().catch(() => null);
       const maxHeight = Math.max(
-        minHeight,
+        TRAY_MIN_HEIGHT,
         Math.min(
           TRAY_MAX_MEASURE_HEIGHT,
           (workArea?.height ?? TRAY_MAX_MEASURE_HEIGHT) - 16,
@@ -205,7 +196,9 @@ export function useTrayPanelLayout({
         const committed = sizingStateRef.current.committed;
         if (!layoutReadyRef.current || committed?.width !== width) {
           const height =
-            layoutReadyRef.current && committed ? committed.height : minHeight;
+            layoutReadyRef.current && committed
+              ? committed.height
+              : Math.min(maxHeight, TRAY_INITIAL_HEIGHT);
           sizingStateRef.current = recordAutoFitCommit(
             sizingStateRef.current,
             width,
@@ -235,7 +228,7 @@ export function useTrayPanelLayout({
           surfaceRect.bottom,
         );
         const height = Math.min(
-          Math.max(Math.ceil(contentBottom - spare) + TRAY_HEIGHT_SLACK, minHeight),
+          Math.max(Math.ceil(contentBottom - spare) + TRAY_HEIGHT_SLACK, TRAY_MIN_HEIGHT),
           maxHeight,
         );
 
@@ -249,7 +242,7 @@ export function useTrayPanelLayout({
           {
             measuredHeight: height,
             expectedWidth: width,
-            minHeight,
+            minHeight: TRAY_MIN_HEIGHT,
             maxHeight,
             scaleFactor: window.devicePixelRatio,
             zoom,
@@ -268,7 +261,7 @@ export function useTrayPanelLayout({
 
         await revealPanel();
       } catch (error) {
-        console.warn("CodexBar tray panel resize failed", error);
+        console.warn("UsageBar tray panel resize failed", error);
         void revealPanel();
       } finally {
         if (!committedHeight) {
@@ -305,7 +298,7 @@ export function useTrayPanelLayout({
       window.clearTimeout(timer);
       resizeRunRef.current += 1;
     };
-  }, [canMeasure, denseOverview, detailMode, layoutRevision, applySize, zoom, baseWidth]);
+  }, [canMeasure, layoutRevision, applySize, zoom, baseWidth]);
 
   return { layoutReady, requestLayout };
 }

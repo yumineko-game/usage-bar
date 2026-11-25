@@ -5,6 +5,9 @@
    the window is anchored in its final position, .tray-panel-reveal--ready
    fades the content in smoothly. */
 :root {
+  --mac-panel-bg: #20242d;
+}
+[data-theme="light"] {
   --mac-panel-bg: #dedee2;
 }
 html:has(.tray-panel-reveal),

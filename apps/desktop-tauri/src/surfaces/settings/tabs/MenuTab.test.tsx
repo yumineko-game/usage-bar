@@ -193,10 +193,8 @@ describe("MenuTab Windows section", () => {
 });
 
 describe("MenuTab Content section", () => {
-  it("updates the Overview layout and token account preferences", () => {
+  it("updates the token account preference", () => {
     const { set } = renderTab();
-    fireEvent.change(select("OverviewLayoutLabel"), { target: { value: "compact" } });
-    expect(set).toHaveBeenCalledWith({ overviewLayout: "compact" });
     fireEvent.click(screen.getByRole("checkbox", { name: "ShowAllTokenAccountsLabel" }));
     expect(set).toHaveBeenCalledWith({ showAllTokenAccountsInMenu: true });
   });
@@ -207,7 +205,6 @@ describe("MenuTab Content section", () => {
     const labels = Array.from(content.querySelectorAll(".settings-field__label"), (n) => n.textContent);
     expect(labels).toEqual([
       "HighlightMenuCardsOnHoverLabel",
-      "OverviewLayoutLabel",
       "ShowAllTokenAccountsLabel",
     ]);
     const toggle = screen.getByRole("checkbox", { name: "HighlightMenuCardsOnHoverLabel" });

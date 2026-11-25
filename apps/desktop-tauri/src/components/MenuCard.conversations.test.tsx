@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const tauriMocks = vi.hoisted(() => ({
@@ -26,7 +26,7 @@ import type {
   SpendContract,
   UsageSpendSummary,
 } from "../types/bridge";
-import MenuCard, { type MenuCardDisplayOptions } from "./MenuCard";
+import MenuCard from "./MenuCard";
 
 const window0 = makeRateWindow(10, { reserveWillLastToReset: false, reserveEtaSeconds: null });
 
@@ -70,12 +70,12 @@ function summary(title: string): UsageSpendSummary {
   };
 }
 
-function card(providerId: string, display: Partial<MenuCardDisplayOptions> = {}) {
+function card(providerId: string) {
   return (
     <LocaleProvider>
       <MenuCard
         provider={snapshot(providerId)}
-        display={{ hideEmail: false, resetTimeRelative: true, ...display }}
+        display={{ hideEmail: false, resetTimeRelative: true }}
       />
     </LocaleProvider>
   );
@@ -91,53 +91,11 @@ describe("MenuCard conversations", () => {
     tauriMocks.getUsageSpendSummary.mockResolvedValue(summary("Refactor the parser"));
   });
 
-  it("lists Codex conversations in a collapsed section that expands on click", async () => {
+  it("keeps Codex conversations and their spend outside the usage card", async () => {
     render(card("codex"));
-    const toggle = await screen.findByRole("button", { name: "CardConversationsTitle" });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("Refactor the parser")).not.toBeInTheDocument();
-
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    const title = screen.getByText("Refactor the parser");
-    expect(title.closest("li")).toHaveAttribute("title", "CardConversationsSessionId");
-    expect(screen.getByText("$0.25")).toBeInTheDocument();
-  });
-
-  it("does not read or show conversations for another provider", async () => {
-    render(card("claude"));
-    await waitFor(() => expect(tauriMocks.getProviderChartData).toHaveBeenCalled());
-    expect(tauriMocks.getUsageSpendSummary).not.toHaveBeenCalled();
+    await screen.findByRole("progressbar");
     expect(screen.queryByRole("button", { name: "CardConversationsTitle" })).not.toBeInTheDocument();
-  });
-
-  it("leaves the list out of the compact Overview and when cost tracking is off", async () => {
-    const { rerender } = render(card("codex", { compactOverview: true }));
-    rerender(card("codex", { costTrackingEnabled: false }));
-    await waitFor(() => expect(tauriMocks.getProviderChartData).toHaveBeenCalled());
+    expect(screen.queryByText("Refactor the parser")).not.toBeInTheDocument();
     expect(tauriMocks.getUsageSpendSummary).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "CardConversationsTitle" })).not.toBeInTheDocument();
-  });
-
-  it("re-reads on Hide Personal Info and never shows titles fetched before it", async () => {
-    const { rerender } = render(card("codex"));
-    fireEvent.click(await screen.findByRole("button", { name: "CardConversationsTitle" }));
-    expect(screen.getByText("Refactor the parser")).toBeInTheDocument();
-
-    let resolveMasked: (value: UsageSpendSummary) => void = () => {};
-    tauriMocks.getUsageSpendSummary.mockReturnValue(
-      new Promise<UsageSpendSummary>((resolve) => {
-        resolveMasked = resolve;
-      }),
-    );
-    rerender(card("codex", { hideEmail: true }));
-    expect(screen.queryByText("Refactor the parser")).not.toBeInTheDocument();
-    expect(tauriMocks.getUsageSpendSummary).toHaveBeenCalledTimes(2);
-
-    resolveMasked(summary("Session synt...ession-1"));
-    const toggle = await screen.findByRole("button", { name: "CardConversationsTitle" });
-    if (toggle.getAttribute("aria-expanded") === "false") fireEvent.click(toggle);
-    expect(await screen.findByText("Session synt...ession-1")).toBeInTheDocument();
-    expect(screen.queryByText("Refactor the parser")).not.toBeInTheDocument();
   });
 });

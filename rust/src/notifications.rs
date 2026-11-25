@@ -658,7 +658,7 @@ impl NotificationManager {
     if ($null -eq $notifier) {{ throw "CreateToastNotifier returned null" }}
     $notifier.Show($toast)
 }} catch {{
-    [System.Console]::Error.WriteLine("CodexBar toast failed: $_")
+    [System.Console]::Error.WriteLine("UsageBar toast failed: $_")
     exit 1
 }}"#,
             safe_title, safe_body
@@ -693,7 +693,7 @@ impl NotificationManager {
         // Try notify-send first (works on most Linux distros including WSL with WSLg)
         if let Ok(output) = Command::new("notify-send")
             .args([
-                "--app-name=CodexBar",
+                "--app-name=UsageBar",
                 "--icon=dialog-information",
                 title,
                 body,
@@ -750,7 +750,7 @@ fn ensure_aumid_registered() {
     // registering Win32 desktop app AUMIDs without a COM server or Start Menu shortcut.
     let result = hkcu
         .create_subkey(r"SOFTWARE\Classes\AppUserModelId\CodexBar")
-        .and_then(|(key, _)| key.set_value("DisplayName", &"CodexBar"));
+        .and_then(|(key, _)| key.set_value("DisplayName", &"UsageBar"));
 
     match result {
         Ok(()) => tracing::debug!("CodexBar AUMID registered for Windows toast notifications"),

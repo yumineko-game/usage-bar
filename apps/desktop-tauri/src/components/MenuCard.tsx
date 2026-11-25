@@ -1,76 +1,27 @@
-import { Fragment, type CSSProperties, type ReactNode, useEffect, useState } from "react";
-import type {
-  CostSummaryDisplayStyle,
-  ProviderChartData,
-  ProviderUsageSnapshot,
-  TrayPanelStyle,
-  UsageSpendSummary,
-  WorkdayTickStyle,
-} from "../types/bridge";
-import { getProviderChartData, getUsageSpendSummary } from "../lib/tauri";
+import type { CSSProperties } from "react";
+import type { ProviderUsageSnapshot } from "../types/bridge";
 import { useLocale } from "../hooks/useLocale";
-import { providerListsConversations, providerSupportsChartData } from "../lib/providerCharts";
-import { cardConversationsModel } from "../lib/cardConversations";
 import { providerAllowsPace } from "../lib/providerPace";
-import { hideOpenAiApiProjectId } from "../lib/openAiApiIdentity";
-import {
-  claudePlanDateNote,
-  isUsageItemVisible,
-  projectClaudeSections,
-} from "../lib/usageItemVisibility";
+import { isUsageItemVisible, projectClaudeSections } from "../lib/usageItemVisibility";
 import { localizeWindowLabel } from "../lib/windowLabels";
-import { inlineDashboardModel } from "../lib/inlineDashboard";
 import { useMonthlyLimitBlockNow } from "../hooks/useMonthlyLimitBlockNow";
-import type { UsageThresholdSettings } from "../lib/metricRowModel";
 import { providerBarAccent } from "./providers/providerIcons";
-import CardHeader, { displayPlanName } from "./card/CardHeader";
+import CardHeader from "./card/CardHeader";
 import CardMetricRow, { type MetricEntry } from "./card/CardMetricRow";
-import DetailSections from "./card/DetailSections";
-import InlineDashboard from "./card/InlineDashboard";
-import ExtraUsageBlock from "./card/ExtraUsageBlock";
-import CardConversations from "./card/CardConversations";
-import WayfinderBlock from "./card/WayfinderBlock";
-import { OpenAILiveSpendChart } from "./OpenAILiveSpendChart";
-import { describeCard } from "./card/describeCard";
 import { hideEmailsInText } from "../lib/personalInfo";
-
-export interface MenuCardDisplayOptions {
-  hideEmail: boolean;
-  resetTimeRelative: boolean;
-  showResetWhenExhausted?: boolean;
-  showPace?: boolean;
-  showAsUsed?: boolean;
-  /**
-   * Compact Overview layout: the header and the quota rows only (plus the
-   * Wayfinder telemetry, which is that provider's quota).
-   */
-  compactOverview?: boolean;
-  costSummaryDisplayStyle?: CostSummaryDisplayStyle;
-  usageThresholds?: UsageThresholdSettings | null;
-  quotaWarningMarkersVisible?: boolean;
-  weeklyProgressWorkDays?: number | null;
-  workdayTickStyle?: WorkdayTickStyle;
-  /** Settings "Track costs"; a change re-reads the chart so local estimates follow it. */
-  costTrackingEnabled?: boolean;
-  /** Saved History window (raw); a change re-reads the Conversations list. */
-  costReportingPeriod?: string;
-  /**
-   * One account's row in an Overview that lists accounts separately. Local-log
-   * charts and the Conversations list are per provider, not per account, so
-   * they are not read for such a row.
-   */
-  accountScoped?: boolean;
-  /** Settings > Menu > Panel look; defaults to modern. */
-  panelStyle?: TrayPanelStyle;
-}
+import { quotaOnlyDescription } from "../lib/usageWindows";
 
 interface MenuCardProps {
   provider: ProviderUsageSnapshot;
-  display: MenuCardDisplayOptions;
+  display: {
+    hideEmail: boolean;
+    resetTimeRelative: boolean;
+    showResetWhenExhausted?: boolean;
+    showPace?: boolean;
+    showAsUsed?: boolean;
+  };
   isRefreshing?: boolean;
-  /** Per-provider accent color override (hex); defaults to the brand color. */
   accentColor?: string;
-  onLayoutChange?: () => void;
 }
 
 /**
@@ -108,7 +59,8 @@ function cardMetrics(
       id: "secondary",
       label: provider.secondaryLabelKey
         ? t(provider.secondaryLabelKey)
-        : localizeWindowLabel(provider.secondaryLabel, t) || t("DetailWindowSecondary"),
+        : localizeWindowLabel(provider.secondaryLabel, t, language, provider.secondary.windowMinutes) ||
+          t("DetailWindowSecondary"),
       snap: provider.secondary,
       lane: "secondary",
     });
@@ -125,7 +77,8 @@ function cardMetrics(
     metrics.push({
       id: "tertiary",
       // Upstream 0.48.0: the cadence label (e.g. "Monthly") when the provider names one.
-      label: localizeWindowLabel(provider.tertiaryLabel, t) || t("DetailWindowTertiary"),
+      label: localizeWindowLabel(provider.tertiaryLabel, t, language, provider.tertiary.windowMinutes) ||
+        t("DetailWindowTertiary"),
       snap: provider.tertiary,
       lane: "tertiary",
     });
@@ -142,318 +95,74 @@ function cardMetrics(
     });
   }
   // A window the provider keeps for the tray and float bar only (upstream LithosAI has no card bar).
-  return metrics.filter(
-    (metric) =>
-      !metric.snap.hiddenOnCard && isUsageItemVisible(provider.hiddenUsageItemIds, metric.id),
-  );
+  return metrics.filter(({ id, snap }) => {
+    if (snap.hiddenOnCard || !isUsageItemVisible(provider.hiddenUsageItemIds, id)) return false;
+    return !snap.isInformational || snap.resetsAt != null || !snap.resetDescription?.trim()
+      || quotaOnlyDescription(snap.resetDescription) != null;
+  });
 }
 
-/** Quota bar thickness in px on the tray card; Settings keeps the 6px default. */
-const TRAY_BAR_HEIGHT = 8;
-
-/**
- * Provider card, top to bottom: header, divider, rate-window rows, key-value
- * sections, the extra usage block, the collapsible Cost dashboard and the local
- * Conversations list, each section set off by a hairline. Account switching, pace budgets,
- * forecasts, burndown and pricing details live in Settings > Providers.
- */
 export default function MenuCard({
   provider: reportedProvider,
   display,
   isRefreshing = false,
   accentColor,
-  onLayoutChange,
 }: MenuCardProps) {
-  const {
-    hideEmail,
-    resetTimeRelative,
-    showResetWhenExhausted = false,
-    showPace = true,
-    showAsUsed = false,
-    compactOverview = false,
-    costSummaryDisplayStyle,
-    usageThresholds = null,
-    quotaWarningMarkersVisible = true,
-    weeklyProgressWorkDays = null,
-    workdayTickStyle = "subtle",
-    costTrackingEnabled = true,
-    costReportingPeriod,
-    accountScoped = false,
-    panelStyle = "modern",
-  } = display;
   const { t, language } = useLocale();
   const provider = projectClaudeSections(reportedProvider.providerId, reportedProvider);
-  const [chartData, setChartData] = useState<ProviderChartData | null>(null);
-
-  // Another provider or account must not show the previous card's chart.
-  useEffect(() => {
-    setChartData(null);
-  }, [provider.providerId, provider.accountEmail]);
-
-  // Re-read the local-usage chart after a provider publishes changed usage and
-  // when a render crosses the local calendar day, so Today keeps advancing.
-  // `updatedAt` changes on every refresh, and each read can walk the local
-  // transcripts, so key on the usage values instead.
-  const localDay = new Date().toLocaleDateString("sv");
-  const usageRevision = [provider.primary, provider.secondary, provider.tertiary]
-    .map((window) => window?.usedPercent ?? "")
-    .concat(provider.cost?.used ?? "")
-    .join("|");
-  useEffect(() => {
-    if (!providerSupportsChartData(provider.providerId) || accountScoped) return;
-    let cancelled = false;
-    let frame: number | undefined;
-    getProviderChartData(provider.providerId, provider.accountEmail ?? undefined)
-      .then((data) => {
-        if (!cancelled) {
-          setChartData(data);
-          frame = requestAnimationFrame(() => onLayoutChange?.());
-        }
-      })
-      .catch(() => {
-        /* chart data is best-effort */
-      });
-    return () => {
-      cancelled = true;
-      if (frame !== undefined) cancelAnimationFrame(frame);
-    };
-    // "Track costs" flips local estimates on or off; the backend answers for the new value.
-  }, [provider.providerId, provider.accountEmail, usageRevision, localDay, costTrackingEnabled, accountScoped, onLayoutChange]);
-
-  // The Conversations list reads the same backend-cached summary as Usage & Spend,
-  // which masks titles itself; a summary fetched under the other Hide Personal
-  // Info value is never shown.
-  const listsConversations =
-    !compactOverview &&
-    !accountScoped &&
-    costTrackingEnabled &&
-    providerListsConversations(provider.providerId);
-  const [spend, setSpend] = useState<{ summary: UsageSpendSummary; hidden: boolean } | null>(null);
-  useEffect(() => {
-    if (!listsConversations) {
-      setSpend(null);
-      return;
-    }
-    let cancelled = false;
-    let frame: number | undefined;
-    getUsageSpendSummary()
-      .then((summary) => {
-        if (cancelled) return;
-        setSpend({ summary, hidden: hideEmail });
-        frame = requestAnimationFrame(() => onLayoutChange?.());
-      })
-      .catch(() => {
-        if (!cancelled) setSpend(null);
-      });
-    return () => {
-      cancelled = true;
-      if (frame !== undefined) cancelAnimationFrame(frame);
-    };
-  }, [listsConversations, hideEmail, costReportingPeriod, localDay, onLayoutChange]);
-  const conversations =
-    listsConversations && spend && spend.hidden === hideEmail
-      ? cardConversationsModel(provider.providerId, spend.summary, t)
-      : null;
-
-  const isWayfinder = provider.providerId === "wayfinder";
-  const email = isWayfinder ? null : headerAccount(provider, hideEmail);
-  const plan = isWayfinder
-    ? null
-    : hideOpenAiApiProjectId(
-        displayPlanName(provider.planName, t),
-        provider.providerId === "openaiapi" && hideEmail,
-      );
-
-  const metrics = cardMetrics(provider, t, language);
-  // Snapshots are cached across failed refreshes, so monthly-limit blocks are
-  // re-checked against the clock and lift when the pool's reset passes.
+  const { hideEmail, showPace = true } = display;
+  const metrics = provider.error ? [] : cardMetrics(provider, t, language);
   const monthlyLimitBlockNow = useMonthlyLimitBlockNow(
     metrics.map((metric) => metric.snap.monthlyLimitBlock),
   );
-  const presence = describeCard(
-    provider,
-    chartData,
-    metrics,
-    costSummaryDisplayStyle,
-    compactOverview,
-    claudePlanDateNote(provider.providerId, provider.subscription, t),
-    conversations,
-  );
-  const dashboard =
-    !compactOverview && presence.localUsage
-      ? inlineDashboardModel({
-          providerId: provider.providerId,
-          summary: presence.localUsage,
-          costHistory: chartData?.costHistory ?? [],
-          tokensHistory: chartData?.tokensHistory ?? [],
-          quotaHistory: chartData?.quotaWindowHistory?.windows,
-          t,
-        })
-      : null;
-  const showDetailSections = presence.showsDetailSections;
-  const showCost = !compactOverview && presence.hasCost && !!provider.cost;
   const metricDisplay = {
-    resetTimeRelative,
-    showResetWhenExhausted,
-    showPace:
-      showPace &&
-      providerAllowsPace(provider.providerId, provider.sourceLabel, provider.paceAuthoritative),
-    showAsUsed,
-    compactOverview,
+    ...display,
     monthlyLimitBlockNow,
-    usageThresholds,
-    quotaWarningMarkersVisible,
-    weeklyProgressWorkDays,
-    workdayTickStyle,
-    panelStyle,
+    showPace: showPace && providerAllowsPace(
+      provider.providerId, provider.sourceLabel, provider.paceAuthoritative,
+    ),
   };
-
-  // Card sections in screen order. Modern sets every neighbouring pair off with a
-  // hairline and puts the extra usage block before Cost; classic keeps the extra
-  // usage block last, set off by a single hairline.
-  const modern = panelStyle !== "classic";
-  const sections: { key: string; node: ReactNode }[] = [];
-  if (presence.hasMetrics || presence.planDateNote) {
-    sections.push({
-      key: "metrics",
-      node: (
-        <>
-          {presence.hasMetrics && (
-            <section className="menu-card__metrics">
-              {metrics.map((metric) => (
-                <CardMetricRow
-                  key={metric.id}
-                  title={metric.label}
-                  snap={metric.snap}
-                  lane={metric.lane}
-                  providerId={provider.providerId}
-                  display={metricDisplay}
-                  resetFormatMode={metric.resetFormatMode}
-                  barHeight={TRAY_BAR_HEIGHT}
-                />
-              ))}
-            </section>
-          )}
-          {presence.planDateNote && <p className="card-notes">{presence.planDateNote}</p>}
-        </>
-      ),
-    });
-  }
-  if (showDetailSections) {
-    sections.push({
-      key: "details",
-      node: (
-        <DetailSections
-          details={provider.displayDetails ?? []}
-          inventory={provider.inventory ?? []}
-          hiddenUsageItemIds={provider.hiddenUsageItemIds}
-          resetTimeRelative={resetTimeRelative}
-        />
-      ),
-    });
-  }
-  if (presence.wayfinderUsage) {
-    sections.push({ key: "wayfinder", node: <WayfinderBlock usage={presence.wayfinderUsage} /> });
-  }
-  if (presence.openAiThroughput) {
-    sections.push({
-      key: "openai-throughput",
-      node: (
-        <OpenAILiveSpendChart
-          key={provider.providerId}
-          providerId={provider.providerId}
-          throughput={presence.openAiThroughput}
-          usage={provider.openAiApiUsage}
-          t={t}
-        />
-      ),
-    });
-  }
-  if (showCost && provider.cost) {
-    sections.push({
-      key: "extra-usage",
-      node: (
-        <ExtraUsageBlock
-          providerId={provider.providerId}
-          cost={provider.cost}
-          style={costSummaryDisplayStyle}
-          resetTimeRelative={resetTimeRelative}
-        />
-      ),
-    });
-  }
-  if (dashboard) {
-    sections.push({
-      key: "dashboard",
-      node: (
-        <InlineDashboard
-          model={dashboard}
-          onToggle={() => requestAnimationFrame(() => onLayoutChange?.())}
-          collapsible={modern}
-        />
-      ),
-    });
-  }
-  if (presence.conversations) {
-    sections.push({
-      key: "conversations",
-      node: (
-        <CardConversations
-          model={presence.conversations}
-          onToggle={() => requestAnimationFrame(() => onLayoutChange?.())}
-        />
-      ),
-    });
-  }
-
-  const ordered = modern
-    ? sections
-    : [
-        ...sections.filter((section) => section.key !== "extra-usage"),
-        ...sections.filter((section) => section.key === "extra-usage"),
-      ];
-
-  const cardClassName = [
-    "menu-card",
-    provider.error ? "menu-card--error" : null,
-    isRefreshing ? "menu-card--refreshing" : null,
-    presence.hasDetails ? "menu-card--with-details" : "menu-card--header-only",
-  ]
-    .filter(Boolean)
-    .join(" ");
   const accent = providerBarAccent(provider.providerId, accentColor);
+  const classes = [
+    "menu-card",
+    metrics.length > 0 ? "menu-card--with-details" : "menu-card--header-only",
+    provider.error && "menu-card--error",
+    isRefreshing && "menu-card--refreshing",
+  ];
 
   return (
     <article
-      className={cardClassName}
+      className={classes.filter(Boolean).join(" ")}
       aria-busy={isRefreshing}
       style={{ "--provider-accent": accent } as CSSProperties}
     >
       <CardHeader
         name={provider.displayName}
-        email={email}
-        plan={plan}
+        email={provider.providerId === "wayfinder" ? null : headerAccount(provider, hideEmail)}
+        plan={null}
         error={hideEmail ? hideEmailsInText(provider.error) : provider.error}
         updatedAt={provider.updatedAt}
         isRefreshing={isRefreshing}
+        compact
       />
-
-      {presence.hasDetails && <div className="menu-card__divider" />}
-
-      {presence.hasDetails && (
-        <div className="menu-card__content">
-          {ordered.map((section, index) => (
-            <Fragment key={section.key}>
-              {(modern
-                ? index > 0
-                : section.key === "extra-usage" &&
-                  ordered.slice(0, index).some((earlier) => earlier.key !== "wayfinder")) && (
-                <div className="menu-card__separator" />
-              )}
-              {section.node}
-            </Fragment>
-          ))}
-        </div>
+      {metrics.length > 0 && (
+        <>
+          <div className="menu-card__divider" />
+          <section className="menu-card__metrics">
+            {metrics.map((metric) => (
+              <CardMetricRow
+                key={metric.id}
+                title={metric.label}
+                snap={metric.snap}
+                lane={metric.lane}
+                providerId={provider.providerId}
+                display={metricDisplay}
+                resetFormatMode={metric.resetFormatMode}
+                tray
+              />
+            ))}
+          </section>
+        </>
       )}
     </article>
   );

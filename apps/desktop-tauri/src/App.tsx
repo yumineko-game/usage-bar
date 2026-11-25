@@ -63,10 +63,10 @@ function AppInner() {
   const [error, setError] = useState<string | null>(null);
   const [themePreference, setThemePreference] = useState<ThemePreference>("dark");
 
-  // Settings follows the Windows app theme under `auto`; the other surfaces
-  // keep the pinned-Dark media query.
+  // The native windows are pinned dark, so the tray and Settings resolve
+  // `auto` from Windows rather than the WebView2 media query.
   useTheme(themePreference, {
-    followSystem: isSettingsWindow() || surface.mode === "settings",
+    followSystem: !isFloatBarWindow(),
   });
   useDeepSeekPricingStatus();
 
@@ -77,6 +77,7 @@ function AppInner() {
 
   useEffect(() => {
     let cancelled = false;
+    let themeRevision = 0;
 
     reloadBootstrapState()
       .then((bootstrap) => {
@@ -84,7 +85,7 @@ function AppInner() {
           return;
         }
         setState(bootstrap);
-        setThemePreference(bootstrap.settings.theme);
+        if (themeRevision === 0) setThemePreference(bootstrap.settings.theme);
         setError(null);
       })
       .catch((cause: unknown) => {
@@ -122,17 +123,23 @@ function AppInner() {
         })
       : Promise.resolve(null);
 
-    // Keep the theme in sync when mutations happen inside other surfaces
-    // (e.g., Settings → Appearance). `useSettings` dispatches this event
-    // after every successful `updateSettings` call.
+    const reloadTheme = () => {
+      const revision = ++themeRevision;
+      void getSettingsSnapshot()
+        .then((fresh) => {
+          if (!cancelled && revision === themeRevision) setThemePreference(fresh.theme);
+        })
+        .catch(() => {});
+    };
+    const unlistenTheme = listen("settings-changed", reloadTheme).catch(() => null);
+
     const onSettingsUpdated = (evt: Event) => {
       const detail = (evt as CustomEvent<BootstrapState["settings"]>).detail;
       if (detail) {
+        themeRevision += 1;
         setThemePreference(detail.theme);
       } else {
-        getSettingsSnapshot()
-          .then((fresh) => setThemePreference(fresh.theme))
-          .catch(() => {});
+        reloadTheme();
       }
     };
     window.addEventListener("codexbar:settings-updated", onSettingsUpdated);
@@ -142,6 +149,7 @@ function AppInner() {
       void unlistenSettingsChangePromise
         .then((unlisten) => unlisten?.())
         .catch(() => {});
+      void unlistenTheme.then((unlisten) => unlisten?.()).catch(() => {});
       window.clearTimeout(updateTimer);
       window.removeEventListener("codexbar:settings-updated", onSettingsUpdated);
     };

@@ -1,16 +1,16 @@
-# Win-CodexBar
+# UsageBar
 
 [English](./README.md) | [简体中文](./README.zh-CN.md) | [繁體中文（臺灣）](./README.zh-TW.md) | [日本語](./README.ja-JP.md) | [한국어](./README.ko-KR.md) | [Español mexicano](./README.es-MX.md) | [Português (Brasil)](./README.pt-BR.md) | [Türkçe](./README.tr-TR.md)
 
-O Win-CodexBar é um aplicativo para a bandeja do sistema do Windows que mantém visível o uso das suas ferramentas de programação com IA, sem precisar abrir vários painéis. Ele traz a proposta do [CodexBar](https://github.com/steipete/CodexBar) para uma aplicação desktop em Tauri + React, apoiada por uma lógica compartilhada de provedores escrita em Rust.
+O UsageBar é um aplicativo para a bandeja do sistema do Windows que mantém visível o uso das suas ferramentas de programação com IA, sem precisar abrir vários painéis. Ele traz a proposta do [CodexBar](https://github.com/steipete/CodexBar) para uma aplicação desktop em Tauri + React, apoiada por uma lógica compartilhada de provedores escrita em Rust.
 
 <table>
   <tr>
     <td width="36%" align="center">
-      <img src="docs/images/tray-panel.png" alt="Painel da bandeja do Win-CodexBar mostrando cartões de uso dos provedores"/>
+      <img src="docs/images/tray-panel.png" alt="Painel da bandeja do UsageBar mostrando cartões de uso dos provedores"/>
     </td>
     <td width="64%" align="center">
-      <img src="docs/images/settings-providers.png" alt="Página de configurações de provedores do Win-CodexBar"/>
+      <img src="docs/images/settings-providers.png" alt="Página de configurações de provedores do UsageBar"/>
     </td>
   </tr>
 </table>
@@ -26,6 +26,8 @@ O Win-CodexBar é um aplicativo para a bandeja do sistema do Windows que mantém
 - **Versões instalável e portátil**, com inicialização do runtime do WebView2 e do runtime do VC++, além de arquivos de verificação SHA-256.
 
 ## Instalação
+
+Compile o UsageBar a partir do código-fonte seguindo as instruções abaixo. O pacote Winget e os arquivos desta seção são publicados pelo projeto original Win-CodexBar.
 
 Instale com o Gerenciador de Pacotes do Windows:
 
@@ -138,8 +140,8 @@ A interface e os relatórios para colaboradores estão disponíveis atualmente e
 
 ```powershell
 # Pré-requisitos: Node.js + pnpm. Rust e MinGW são instalados pelo script quando necessário.
-git clone https://github.com/nesszer/Win-CodexBar.git
-cd Win-CodexBar
+git clone https://github.com/yumineko-game/usage-bar.git
+cd usage-bar
 .\scripts\dev.ps1
 ```
 

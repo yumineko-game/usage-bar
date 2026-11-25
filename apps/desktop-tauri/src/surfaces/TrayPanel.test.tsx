@@ -291,7 +291,7 @@ describe("TrayPanel provider grid", () => {
     tauriMocks.getUsageSpendSummary.mockResolvedValue({ rows: [], models: [] });
     tauriMocks.beginFlyoutGesture.mockResolvedValue(undefined);
     tauriMocks.getAppInfo.mockResolvedValue({
-      name: "CodexBar",
+      name: "UsageBar",
       version: "0.70.0",
       buildNumber: "1",
       updateChannel: "stable",
@@ -345,8 +345,8 @@ describe("TrayPanel provider grid", () => {
       buildBundle({
         ActionRefresh: "Refresh",
         OverviewSpendProviderCoverage: "{} of {} providers have spend",
-        MenuAbout: "About CodexBar",
-        MenuAboutVersion: "About CodexBar (v{})",
+        MenuAbout: "About UsageBar",
+        MenuAboutVersion: "About UsageBar (v{})",
         MenuQuit: "Quit",
         MenuSettings: "Settings...",
         PanelMenu: "Menu",
@@ -446,155 +446,6 @@ describe("TrayPanel provider grid", () => {
     });
   });
 
-  it("shows only included overview spend rows without an export button", async () => {
-    tauriMocks.getUsageSpendSummary.mockResolvedValue({
-      contract: {},
-      reportingPeriod: "rolling:30",
-      reportingDay: "2026-09-19",
-      dashboardTimezone: "UTC",
-      rows: [
-        {
-          providerId: "codex",
-          displayName: "Codex",
-          sevenDay: 1,
-          thirtyDay: 2,
-          periodCost: 2,
-          periodTokens: null,
-          currency: "USD",
-          source: "local",
-          includedInOverview: true,
-        },
-        {
-          providerId: "claude",
-          displayName: "Claude",
-          sevenDay: 3,
-          thirtyDay: 4,
-          periodCost: 4,
-          periodTokens: null,
-          currency: "USD",
-          source: "hidden",
-          includedInOverview: false,
-        },
-        // A known subtotal is a partial estimate: counted for coverage, not in the total.
-        {
-          providerId: "antigravity",
-          displayName: "Antigravity",
-          sevenDay: null,
-          thirtyDay: null,
-          periodCost: null,
-          periodTokens: null,
-          thirtyDayEstimate: {
-            knownSubtotalUsd: 9,
-            coverage: { priced: 0, unpriced: 1, unmetered: 0, estimated: 1 },
-          },
-          currency: "USD",
-          source: "known subtotal",
-          includedInOverview: true,
-        },
-      ],
-    });
-
-    renderTrayPanel([provider("codex", "Codex", 35)]);
-
-    const expectedTotal = `~${new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 2,
-    }).format(2)}`;
-    expect(await screen.findByText((_, element) =>
-      element?.tagName === "STRONG" && element.textContent === expectedTotal,
-    )).toBeInTheDocument();
-    expect(screen.getByText(/1 of 2 providers have spend/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "UsageSpendShare" })).not.toBeInTheDocument();
-  });
-
-  it("hides overview spend when Track costs is off", async () => {
-    tauriMocks.getUsageSpendSummary.mockResolvedValue({
-      contract: {},
-      reportingPeriod: "rolling:30",
-      reportingDay: "2026-09-19",
-      dashboardTimezone: "UTC",
-      costTrackingEnabled: false,
-      rows: [
-        {
-          providerId: "codex",
-          displayName: "Codex",
-          sevenDay: 1,
-          thirtyDay: 2,
-          periodCost: 2,
-          periodTokens: null,
-          currency: "USD",
-          source: "local",
-          includedInOverview: true,
-        },
-      ],
-    });
-
-    const { container } = renderTrayPanel([provider("codex", "Codex", 35)]);
-
-    await waitFor(() => {
-      expect(container.querySelector(".tray-panel-reveal--ready")).not.toBeNull();
-    });
-    await waitFor(() => expect(tauriMocks.getUsageSpendSummary).toHaveBeenCalled());
-    await Promise.resolve();
-    expect(screen.queryByText(/providers have spend/)).not.toBeInTheDocument();
-    expect(container.textContent).not.toMatch(/\$2\.00/);
-  });
-
-  it("follows Track costs live: off hides Overview spend and re-reads the cards, on restores them", async () => {
-    const onSummary = {
-      contract: {},
-      reportingPeriod: "rolling:30",
-      reportingDay: "2026-09-19",
-      dashboardTimezone: "UTC",
-      costTrackingEnabled: true,
-      rows: [
-        {
-          providerId: "codex",
-          displayName: "Codex",
-          sevenDay: 1,
-          thirtyDay: 2,
-          periodCost: 2,
-          periodTokens: null,
-          currency: "USD",
-          source: "local",
-          includedInOverview: true,
-        },
-      ],
-    };
-    tauriMocks.getUsageSpendSummary.mockResolvedValue(onSummary);
-    const { container } = renderTrayPanel([provider("codex", "Codex", 35)], { costUsageEnabled: true });
-    const total = new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 2,
-    }).format(2);
-    const shown = () =>
-      /providers have spend/.test(container.textContent ?? "")
-      && [...container.querySelectorAll("strong")].some((e) => e.textContent?.includes(total));
-
-    await waitFor(() => expect(shown()).toBe(true));
-    await waitFor(() => expect(tauriMocks.getProviderChartData).toHaveBeenCalledTimes(1));
-    const summaryCalls = tauriMocks.getUsageSpendSummary.mock.calls.length;
-
-    // Track costs turned off in the Settings window: the flyout only hears settings-changed.
-    tauriMocks.getSettingsSnapshot.mockResolvedValue(settings({ costUsageEnabled: false }));
-    await act(async () => emitEvent("settings-changed", null));
-    await waitFor(() => expect(shown()).toBe(false));
-    await waitFor(() => expect(tauriMocks.getProviderChartData).toHaveBeenCalledTimes(2));
-    expect(tauriMocks.getUsageSpendSummary.mock.calls.length).toBe(summaryCalls);
-
-    // Turned on again: the summary and the card chart are read again.
-    tauriMocks.getSettingsSnapshot.mockResolvedValue(settings({ costUsageEnabled: true }));
-    await act(async () => emitEvent("settings-changed", null));
-    await waitFor(() => expect(shown()).toBe(true));
-    await waitFor(() => expect(tauriMocks.getProviderChartData).toHaveBeenCalledTimes(3));
-    // Once for Overview spend, once for the Codex card's Conversations list.
-    await waitFor(() =>
-      expect(tauriMocks.getUsageSpendSummary.mock.calls.length).toBe(summaryCalls + 2),
-    );
-  });
-
   it("removes a disabled provider's card as soon as settings change", async () => {
     const { container } = renderTrayPanel([
       provider("codex", "Codex", 35),
@@ -610,56 +461,6 @@ describe("TrayPanel provider grid", () => {
 
     await waitFor(() => expect(container.querySelector("#card-codex")).toBeNull());
     expect(container.querySelector("#card-claude")).not.toBeNull();
-  });
-
-  it("updates Overview spend after provider publications without reopening the panel", async () => {
-    const summary = (amount: number) => ({
-      contract: {},
-      reportingPeriod: "rolling:7",
-      reportingDay: "2026-10-26",
-      dashboardTimezone: "UTC",
-      rows: [{
-        providerId: "codex", displayName: "Codex", periodCost: amount,
-        periodTokens: 100, currency: "USD", source: "local", includedInOverview: true,
-      }],
-    });
-    tauriMocks.getUsageSpendSummary.mockResolvedValue(summary(70.31));
-    renderTrayPanel([provider("codex", "Codex", 35)]);
-    expect(await screen.findByText("$70.31")).toBeInTheDocument();
-    const initialReads = tauriMocks.getUsageSpendSummary.mock.calls.length;
-    tauriMocks.getUsageSpendSummary.mockResolvedValue(summary(71.08));
-    act(() => {
-      emitEvent("provider-updated", provider("codex", "Codex", 36));
-      emitEvent("provider-updated", provider("codex", "Codex", 37));
-    });
-    expect(await screen.findByText("$71.08")).toBeInTheDocument();
-    expect(screen.queryByText("$70.31")).not.toBeInTheDocument();
-    expect(tauriMocks.getUsageSpendSummary).toHaveBeenCalledTimes(initialReads + 1);
-  });
-
-  it("does not let an older Overview scan overwrite newer spend", async () => {
-    const summary = (amount: number) => ({
-      contract: {}, reportingPeriod: "rolling:7", reportingDay: "2026-10-26",
-      dashboardTimezone: "UTC", rows: [{
-        providerId: "codex", displayName: "Codex", periodCost: amount,
-        periodTokens: 100, currency: "USD", source: "local", includedInOverview: true,
-      }],
-    });
-    tauriMocks.getUsageSpendSummary.mockResolvedValue(summary(70.31));
-    renderTrayPanel([provider("codex", "Codex", 35)]);
-    expect(await screen.findByText("$70.31")).toBeInTheDocument();
-    const initialReads = tauriMocks.getUsageSpendSummary.mock.calls.length;
-    let resolveOld!: (value: ReturnType<typeof summary>) => void;
-    tauriMocks.getUsageSpendSummary.mockImplementationOnce(
-      () => new Promise((resolve) => { resolveOld = resolve; }),
-    ).mockResolvedValue(summary(71.08));
-    act(() => emitEvent("provider-updated", provider("codex", "Codex", 36)));
-    await waitFor(() => expect(tauriMocks.getUsageSpendSummary).toHaveBeenCalledTimes(initialReads + 1));
-    act(() => emitEvent("provider-updated", provider("codex", "Codex", 37)));
-    expect(await screen.findByText("$71.08")).toBeInTheDocument();
-    await act(async () => resolveOld(summary(70.50)));
-    expect(screen.getByText("$71.08")).toBeInTheDocument();
-    expect(screen.queryByText("$70.50")).not.toBeInTheDocument();
   });
 
   it("dismisses the tray panel on unmodified Escape", async () => {
@@ -766,10 +567,7 @@ describe("TrayPanel provider grid", () => {
       "menu-surface__footer-sep",
       "menu-surface__footer-note",
       "menu-surface__footer-sep",
-      "menu-surface__footer-row menu-surface__footer-row--refresh",
-      "menu-surface__footer-row",
-      "menu-surface__footer-row",
-      "menu-surface__footer-row",
+      "menu-surface__footer-actions",
     ]);
 
     fireEvent.click(screen.getByRole("button", { name: /^Claude$/ }));
@@ -894,7 +692,7 @@ describe("TrayPanel provider grid", () => {
         {
           ActionRefresh: "更新",
           CostTitle: "コスト",
-          MenuAbout: "CodexBar について",
+          MenuAbout: "UsageBar について",
           MenuQuit: "終了",
           MenuSettings: "設定...",
           PanelAllProviders: "すべてのプロバイダー",
@@ -905,31 +703,12 @@ describe("TrayPanel provider grid", () => {
           PanelPeriodTokens: "{}間のトークン",
           PanelTopModelPrefix: "トップモデル",
           PanelEstimatedFromLocalLogs: "ローカルログから推定",
-          MenuAboutVersion: "CodexBar について (v{})",
+          MenuAboutVersion: "UsageBar について (v{})",
           UpdatedDaysAgo: "{}日前",
         },
         "japanese",
       ),
     );
-    tauriMocks.getProviderChartData.mockResolvedValue({
-      providerId: "codex",
-      costHistory: [{ date: "2026-05-24", value: 1.23 }],
-      creditsHistory: [],
-      usageBreakdown: [],
-      localUsage: {
-        todayCost: null,
-        thirtyDayCost: 1.23,
-        thirtyDayTokens: 584_000,
-        periodCost: 1.23,
-        periodTokens: 584_000,
-        reportingPeriod: "rolling:30",
-        latestTokens: 1200,
-        topModel: "gpt-5.5",
-        estimateNote: "Estimated from local logs",
-        tokenCostUpdatedAtMs: 1234,
-      },
-    });
-
     const { container } = renderTrayPanel([provider("codex", "Codex", 35)]);
 
     await waitFor(() => {
@@ -940,14 +719,10 @@ describe("TrayPanel provider grid", () => {
     expect(container.querySelector(".provider-grid__item")?.textContent).toContain("すべて");
     expect(screen.getByText("更新")).toBeInTheDocument();
     expect(screen.getByText("設定...")).toBeInTheDocument();
-    expect(await screen.findByText("CodexBar について")).toBeInTheDocument();
+    expect(await screen.findByText("UsageBar について")).toBeInTheDocument();
     expect(screen.getByText("終了")).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: "コスト" }));
-    expect(await screen.findByText("30日間のコスト")).toBeInTheDocument();
-    expect(container.querySelector(".card-header__subtitle")?.textContent).toContain("日前");
-    expect(screen.getByText("最新トークン")).toBeInTheDocument();
-    expect(screen.getByText("トップモデル: gpt-5.5")).toBeInTheDocument();
-    expect(screen.getByText("ローカルログから推定")).toBeInTheDocument();
+    expect(container.querySelector(".card-dash")).toBeNull();
+    expect(tauriMocks.getUsageSpendSummary).not.toHaveBeenCalled();
   });
 
   it("localizes the expanded dense grid collapse label in Japanese", async () => {
@@ -1015,23 +790,6 @@ describe("TrayPanel provider grid", () => {
       );
     },
   );
-
-  it("only requests chart data for providers that can render charts", async () => {
-    renderTrayPanel([
-      provider("codex", "Codex"),
-      provider("claude", "Claude"),
-      provider("copilot", "GitHub Copilot"),
-      provider("cursor", "Cursor"),
-      provider("deepseek", "DeepSeek"),
-    ]);
-
-    await waitFor(() => {
-      expect(tauriMocks.getProviderChartData).toHaveBeenCalledTimes(2);
-    });
-
-    expect(tauriMocks.getProviderChartData).toHaveBeenCalledWith("codex", undefined);
-    expect(tauriMocks.getProviderChartData).toHaveBeenCalledWith("claude", undefined);
-  });
 
   it("renders providers in settings catalog order instead of fetch completion order", async () => {
     const catalog: ProviderCatalogEntry[] = [
@@ -1237,7 +995,7 @@ describe("TrayPanel provider grid", () => {
     });
   });
 
-  it("draws quota warning markers at the notification thresholds", async () => {
+  it("omits warning markers even with notification thresholds configured", async () => {
     const { container } = renderTrayPanel([provider("claude", "Claude", 20)], {
       showAsUsed: false,
       highUsageThreshold: 75,
@@ -1245,13 +1003,8 @@ describe("TrayPanel provider grid", () => {
       providerQuotaWarnings: { claude: { session: { critical: 95 } } },
     });
 
-    await waitFor(() => {
-      expect(
-        Array.from(container.querySelectorAll(".menu-metric__progress-warning"), (node) =>
-          node.getAttribute("x"),
-        ),
-      ).toEqual(["5%", "25%"]);
-    });
+    expect(await screen.findByRole("progressbar")).toBeInTheDocument();
+    expect(container.querySelector(".menu-metric__progress-warning")).toBeNull();
   });
 
   it("hides provider grid icons when the display setting is disabled", async () => {
@@ -1279,7 +1032,7 @@ describe("TrayPanel provider grid", () => {
 
     const menu = await screen.findByRole("navigation", { name: "Menu" });
     expect(
-      await within(menu).findByRole("button", { name: "About CodexBar" }),
+      await within(menu).findByRole("button", { name: "About UsageBar" }),
     ).toBeInTheDocument();
 
     const surface = container.querySelector(".menu-surface");
@@ -1295,7 +1048,7 @@ describe("TrayPanel provider grid", () => {
     ).toEqual([
       ["RefreshCtrl+R", "Control+R"],
       ["Settings...Ctrl+,", "Control+,"],
-      ["About CodexBar", null],
+      ["About UsageBar", null],
       ["QuitCtrl+Q", "Control+Q"],
     ]);
     expect(tauriMocks.setSurfaceMode).not.toHaveBeenCalled();
@@ -1354,7 +1107,7 @@ describe("TrayPanel provider grid", () => {
     await waitFor(() => {
       expect(container.querySelector(".tray-panel-reveal--ready")).not.toBeNull();
     });
-    expect(warn).toHaveBeenCalledWith("CodexBar tray panel resize failed", expect.any(Error));
+    expect(warn).toHaveBeenCalledWith("UsageBar tray panel resize failed", expect.any(Error));
 
     warn.mockRestore();
   });
@@ -1386,7 +1139,7 @@ describe("TrayPanel provider grid", () => {
     expect(tauriMocks.reanchorTrayPanel).not.toHaveBeenCalled();
   });
 
-  it("reserves dense all-provider height on first layout", async () => {
+  it("opens the dense provider overview without reserving a tall window", async () => {
     const setSize = vi.fn().mockResolvedValue(undefined);
     windowMocks.getCurrentWindow.mockReturnValue({
       setSize,
@@ -1403,7 +1156,7 @@ describe("TrayPanel provider grid", () => {
 
     await waitFor(() => {
       expect(setSize).toHaveBeenCalledWith(
-        expect.objectContaining({ width: 310, height: 776 }),
+        expect.objectContaining({ width: 310, height: 200 }),
       );
     });
   });
@@ -1416,7 +1169,7 @@ describe("TrayPanel provider grid", () => {
 
     const menu = await screen.findByRole("navigation", { name: "Menu" });
     expect(
-      await within(menu).findByRole("button", { name: "About CodexBar (v0.70.0)" }),
+      await within(menu).findByRole("button", { name: "About UsageBar (v0.70.0)" }),
     ).toBeInTheDocument();
     expect(container.querySelector(".menu-surface--tray")).toHaveClass("menu-surface--classic");
     expect(container.querySelector(".provider-grid")).not.toHaveClass("provider-grid--tabs");
@@ -1483,38 +1236,6 @@ describe("TrayPanel provider grid", () => {
     const { container } = renderTrayPanel([]);
     await waitFor(() => {
       expect(container.querySelectorAll(".panel-resize-handle")).toHaveLength(2);
-    });
-  });
-
-  it("keeps provider detail mode tall enough for the menu rows and footer", async () => {
-    const setSize = vi.fn().mockResolvedValue(undefined);
-    windowMocks.getCurrentWindow.mockReturnValue({
-      setSize,
-      close: vi.fn().mockResolvedValue(undefined),
-      innerSize: vi.fn().mockResolvedValue({ width: 310, height: 200 }),
-    });
-    const errorProvider = {
-      ...provider("abacus", "Abacus AI", 0),
-      error: "Source mode `Cli` not supported for this provider",
-    };
-
-    const { container } = renderTrayPanel([errorProvider]);
-
-    await waitFor(() => {
-      expect(container.querySelector(".tray-panel-reveal--ready")).not.toBeNull();
-    });
-    setSize.mockClear();
-
-    fireEvent.click(
-      container.querySelector<HTMLButtonElement>(
-        '.provider-grid__item[aria-label="Abacus AI"]',
-      )!,
-    );
-
-    await waitFor(() => {
-      expect(setSize).toHaveBeenCalledWith(
-        expect.objectContaining({ width: 310, height: 420 }),
-      );
     });
   });
 
@@ -1628,7 +1349,7 @@ describe("TrayPanel overview account rows", () => {
     tauriMocks.getDeepSeekPricingStatus.mockResolvedValue(null);
     tauriMocks.getUsageSpendSummary.mockResolvedValue({ rows: [], models: [] });
     tauriMocks.getAppInfo.mockResolvedValue({
-      name: "CodexBar",
+      name: "UsageBar",
       version: "0.70.0",
       buildNumber: "1",
       updateChannel: "stable",

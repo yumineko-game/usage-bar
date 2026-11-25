@@ -28,7 +28,7 @@ import {
   spendContract,
   usageSpendSummary,
 } from "./fixtures/bridgeData";
-import { PROOF_LANGUAGES, englishLocaleStrings } from "./locale";
+import { PROOF_LANGUAGES, englishLocaleStrings, japaneseLocaleStrings } from "./locale";
 import type { ProofWindow } from "./params";
 
 export const UNHANDLED_COMMAND_WARNING = "[proof-mock] unhandled command:";
@@ -265,13 +265,16 @@ export function createProofRouter(
     refresh_providers_if_stale: () => null,
     get_current_surface_state: surfaceState,
     set_surface_mode: (args) => args.mode ?? "trayPanel",
-    get_locale_strings: () => englishLocaleStrings(current().localeOverrides),
+    get_locale_strings: () => settings.uiLanguage === "japanese"
+      ? japaneseLocaleStrings()
+      : englishLocaleStrings(current().localeOverrides),
     set_ui_language: () => null,
     get_available_languages: () => PROOF_LANGUAGES,
     get_currency_rates: (args) =>
       proofCurrencyRates(stringArg(args, "preferredCurrencyCode") || "AUTO"),
     get_update_state: proofUpdateState,
     check_for_updates: proofUpdateState,
+    install_github_update: proofUpdateState,
     dismiss_update: proofUpdateState,
     get_app_info: () => proofAppInfo(appVersion),
     get_deepseek_pricing_status: () => null,

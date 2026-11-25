@@ -1,6 +1,6 @@
 # Building from source
 
-This page shows how to build and test Win-CodexBar on Windows. The desktop app is the Tauri shell in `apps/desktop-tauri`. The CLI and the shared backend are the `codexbar` crate in `rust/`.
+This page shows how to build and test UsageBar on Windows. The desktop app is the Tauri shell in `apps/desktop-tauri`. The CLI and the shared backend are the `codexbar` crate in `rust/`.
 
 ## Prerequisites
 
@@ -120,6 +120,16 @@ Tests and builds don't prove tray, settings, float bar or WebView2 behavior. See
 
 ## Build a release on Windows
 
+To build and publish a UsageBar fork release, update the versions in `version.env`, both Cargo manifests, `Cargo.lock`, `apps/desktop-tauri/package.json` and the active Tauri config. Commit the release changes, including the version bump. With the Windows build prerequisites, Inno Setup and an authenticated GitHub CLI available, run this from Git Bash:
+
+```bash
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/release-usagebar.ps1 -PublishUnsigned -NotesFile release-notes.md
+```
+
+The command builds the installer, portable app and CLI archive, writes their SHA-256 files, creates the version tag, and publishes the draft after GitHub reports matching hashes for every file. Omit `-PublishUnsigned` to build and verify the files locally. Retrying uses verified assets cached for the same source commit. This publisher targets `yumineko-game/usage-bar`.
+
+### Upstream Win-CodexBar release
+
 GitHub Actions builds, signs and drafts the published releases when a `vX.Y.Z` tag is pushed (`.github/workflows/release.yml`). [release/ci-cd.md](./release/ci-cd.md) describes that flow.
 
 To build release assets on your own Windows PC, use the cached release builder:
@@ -190,7 +200,7 @@ This uses `cargo-xwin` with Homebrew `llvm` and `lld`, and builds `target/x86_64
 ## Project layout
 
 ```
-Win-CodexBar/
+usage-bar/
 ├── apps/desktop-tauri/          Tauri desktop shell
 │   ├── src/                     React frontend (TypeScript)
 │   └── src-tauri/src/

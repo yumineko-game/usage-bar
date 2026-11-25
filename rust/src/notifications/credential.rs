@@ -262,7 +262,7 @@ mod tests {
         assert_eq!(sent[0].0, "Claude needs sign-in");
         assert_eq!(
             sent[0].1,
-            "Open CodexBar to review the account error and sign in again."
+            "Open UsageBar to review the account error and sign in again."
         );
         assert!(!sent[0].0.contains(ACCOUNT) && !sent[0].1.contains(ACCOUNT));
     }
