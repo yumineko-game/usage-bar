@@ -163,36 +163,6 @@ pub fn grant_foreground_to_running_instance(identifier: &str) {
 #[cfg(not(windows))]
 pub fn grant_foreground_to_running_instance(_identifier: &str) {}
 
-/// Restore a minimized window without activating it. Run it on the main
-/// thread.
-///
-/// tao's `unminimize` uses `ShowWindow(SW_RESTORE)`, which activates the
-/// window (tao `window_state.rs`, `WindowFlags::apply_diff`, lines 390-402).
-/// `SW_SHOWNOACTIVATE` restores the previous size and position and leaves
-/// the foreground where it is. Call `unminimize` afterwards to refresh tao's
-/// cached minimized flag: tao re-reads `IsIconic` before it diffs
-/// (`window.rs`, `Window::set_minimized`, lines 584-598), finds the window
-/// already restored and issues no `SW_RESTORE`.
-#[cfg(windows)]
-pub fn restore_minimized_without_activation(window: &impl raw_window_handle::HasWindowHandle) {
-    const SW_SHOWNOACTIVATE: i32 = 4;
-    let Some(hwnd) = root_hwnd(window) else {
-        return;
-    };
-    // SAFETY: `hwnd` is the live top-level window behind `window`; IsIconic
-    // only reads its state and ShowWindow only changes its show state.
-    unsafe {
-        if IsIconic(hwnd) != 0 {
-            ShowWindow(hwnd, SW_SHOWNOACTIVATE);
-        }
-    }
-}
-
-/// Other platforms have no foreground-lock hack to avoid, so the runtime's
-/// own `unminimize` does the restore.
-#[cfg(not(windows))]
-pub fn restore_minimized_without_activation(_window: &impl raw_window_handle::HasWindowHandle) {}
-
 #[cfg(windows)]
 pub(super) fn root_hwnd(window: &impl raw_window_handle::HasWindowHandle) -> Option<isize> {
     const GA_ROOT: u32 = 2;
@@ -226,7 +196,6 @@ unsafe extern "system" {
     fn FindWindowW(class_name: *const u16, window_name: *const u16) -> isize;
     fn GetWindowThreadProcessId(hwnd: isize, process_id: *mut u32) -> u32;
     fn AllowSetForegroundWindow(process_id: u32) -> i32;
-    fn ShowWindow(hwnd: isize, cmd_show: i32) -> i32;
 }
 
 #[cfg(test)]

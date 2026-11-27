@@ -67,9 +67,7 @@ nul
 /.local/
 # Generated documentation outputs are ignored by default.
 /docs/*
-!/docs/adr/
-/docs/adr/*
-!/docs/adr/*.md
+!/docs/USAGE.md
 /scripts/*
 !/scripts/usagebar-preview.cmd
 !/scripts/win-config-tools/

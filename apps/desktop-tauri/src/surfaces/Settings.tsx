@@ -22,13 +22,8 @@ import {
 import { SettingsSidebar } from "./settings/SettingsSidebar";
 import { useSettingsHistory } from "./settings/useSettingsHistory";
 import GeneralTab from "./settings/tabs/GeneralTab";
-import MenuBarTab from "./settings/tabs/MenuBarTab";
-import MenuTab from "./settings/tabs/MenuTab";
-import AdvancedTab from "./settings/tabs/AdvancedTab";
-import HooksTab from "./settings/tabs/HooksTab";
 import AboutTab from "./settings/tabs/AboutTab";
 import ProvidersTab from "./settings/tabs/ProvidersTab";
-import UsageSpendTab from "./settings/tabs/UsageSpendTab";
 
 // Mirrors `SETTINGS_WINDOW_WIDTH` / `SETTINGS_WINDOW_HEIGHT` in src-tauri `surface.rs`
 // (macOS `PreferencesView` 880x620).
@@ -252,7 +247,7 @@ export default function Settings({
             className={`settings-body${activeTab === "providers" ? " settings-body--provider" : ""}`}
           >
             {activeTab === "general" && (
-              <GeneralTab mode="general" settings={settings} set={set} saving={saving} />
+              <GeneralTab settings={settings} set={set} saving={saving} />
             )}
             {activeTab === "providers" && (
               <ProvidersTab
@@ -261,32 +256,10 @@ export default function Settings({
                 set={set}
                 saving={saving}
                 providerId={providerId}
-                snapshots={snapshots}
               />
             )}
-            {activeTab === "notifications" && (
-              <GeneralTab mode="notifications" settings={settings} set={set} saving={saving} />
-            )}
-            {activeTab === "menuBar" && (
-              <MenuBarTab
-                settings={settings}
-                providers={catalog}
-                set={set}
-                saving={saving}
-              />
-            )}
-            {activeTab === "menu" && (
-              <MenuTab settings={settings} set={set} saving={saving} />
-            )}
-            {activeTab === "usageSpend" && (
-              <UsageSpendTab settings={settings} set={set} saving={saving} />
-            )}
-            {activeTab === "advanced" && (
-              <AdvancedTab settings={settings} set={set} saving={saving} />
-            )}
-            {activeTab === "hooks" && <HooksTab providers={catalog} />}
             {activeTab === "about" && (
-              <AboutTab settings={settings} set={set} saving={saving} />
+              <AboutTab />
             )}
           </div>
 

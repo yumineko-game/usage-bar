@@ -13,45 +13,6 @@ interface UseSettingsReturn {
 const SAVING_INDICATOR_DELAY_MS = 300;
 
 /**
- * Patch fields whose snapshot value is not the patch value: the shortcut patch
- * holds overrides only while the snapshot holds the resolved map. They stay as
- * they are until the save response supplies the resolved value.
- */
-const NOT_OPTIMISTIC: ReadonlySet<string> = new Set(["switcherShortcuts"]);
-
-/** Copies the patch fields that also exist in the snapshot (write-only fields are skipped). */
-function applyPatch(current: SettingsSnapshot, patch: SettingsUpdate): SettingsSnapshot {
-  const next: Record<string, unknown> = { ...current };
-  for (const [key, value] of Object.entries(patch)) {
-    if (value !== undefined && key in current && !NOT_OPTIMISTIC.has(key)) next[key] = value;
-  }
-  // Accent colors are sent as a per-provider merge patch (`null` clears one
-  // provider), not as the full map.
-  if (patch.providerAccentColors) {
-    const colors: Record<string, string> = { ...current.providerAccentColors };
-    for (const [id, color] of Object.entries(patch.providerAccentColors)) {
-      if (color === null) delete colors[id];
-      else colors[id] = color;
-    }
-    next.providerAccentColors = colors;
-  }
-  // Metric preferences are merged per provider as well.
-  if (patch.providerMetrics) {
-    next.providerMetrics = { ...current.providerMetrics, ...patch.providerMetrics };
-  }
-  // Quota warnings replace one provider's value at a time; an empty value is Global.
-  if (patch.providerQuotaWarnings) {
-    const warnings = { ...current.providerQuotaWarnings };
-    for (const [id, value] of Object.entries(patch.providerQuotaWarnings)) {
-      if (Object.keys(value).length === 0) delete warnings[id];
-      else warnings[id] = value;
-    }
-    next.providerQuotaWarnings = warnings;
-  }
-  return next as unknown as SettingsSnapshot;
-}
-
-/**
  * Manages the current settings state and exposes a mutation helper that
  * persists changes through the Tauri bridge and refreshes the local copy.
  */
@@ -87,7 +48,7 @@ export function useSettings(initial: SettingsSnapshot): UseSettingsReturn {
   // window and the tray-panel flyout are separate webviews with separate
   // React state, so the in-window CustomEvent below never reaches them. Rust
   // broadcasts "settings-changed" after every persisted update; re-fetch the
-  // snapshot so this surface (e.g. the tray zoom) re-renders live.
+  // snapshot so this surface re-renders with the provider selection.
   useTauriEvent("settings-changed", () => {
     getSettingsSnapshot()
       .then((fresh) => {
@@ -127,7 +88,10 @@ export function useSettings(initial: SettingsSnapshot): UseSettingsReturn {
     // Show the change right away instead of waiting for the round trip: the
     // controls are controlled, so without this a checkbox flips only after
     // the shell answers.
-    setSettings((current) => applyPatch(current, patch));
+    setSettings((current) => ({
+      ...current,
+      ...Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)),
+    }));
     try {
       const next = await updateSettings(patch);
       if (request !== latestRequest.current) return;
@@ -147,7 +111,7 @@ export function useSettings(initial: SettingsSnapshot): UseSettingsReturn {
       // Re-fetch to stay in sync with disk state on failure
       try {
         const fresh = await getSettingsSnapshot();
-        setSettings(fresh);
+        if (request === latestRequest.current) setSettings(fresh);
       } catch {
         // ignore secondary failure
       }

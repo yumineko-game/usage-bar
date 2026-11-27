@@ -9,7 +9,6 @@ import {
   grokAccountReauthenticate,
 } from "../../../../../lib/tauri";
 import { useGrokAccounts } from "../../../../../hooks/useGrokAccounts";
-import GrokAccountUsageDetails from "../../../../../components/GrokAccountUsageDetails";
 import { buildAccountOrdinals } from "../../../../../components/claudeAccountDisplay";
 
 export function GrokAccountsSection({
@@ -62,11 +61,9 @@ export function GrokAccountsSection({
                 <span className="credential-card__meta">
                   {usage[account.id]?.plan || account.plan}
                 </span>
-                <GrokAccountUsageDetails
-                  snapshot={usage[account.id]}
-                  t={t}
-                  relative={resetTimeRelative}
-                />
+                {usage[account.id]?.status === "signInRequired" && (
+                  <span className="credential-card__date">{t("GrokUsageSignInRequired")}</span>
+                )}
                 {account.isActive && (
                   <span className="credential-card__badge credential-card__badge--set">
                     {t("TokenAccountActive")}

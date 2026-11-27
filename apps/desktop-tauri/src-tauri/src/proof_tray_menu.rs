@@ -239,10 +239,8 @@ fn write_atomic(path: &Path, dump: &TrayMenuDump) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tray_menu::tests::sample_provider_catalog;
-    use crate::tray_menu::{MenuState, build_tray_menu_with};
+    use crate::tray_menu::build_tray_menu;
     use codexbar::settings::Language;
-    use serde_json::json;
 
     #[test]
     fn dump_target_requires_proof_mode_and_an_absolute_path() {
@@ -259,87 +257,9 @@ mod tests {
     }
 
     #[test]
-    fn dump_serializes_each_row_kind_with_checked_state() {
-        let items = vec![
-            TrayMenuEntry::status_row("status_claude", "Claude 60%"),
-            TrayMenuEntry::separator(),
-            TrayMenuEntry::item("refresh", "Refresh all"),
-            TrayMenuEntry::check_item("toggle_float_bar", "Show Float Bar", true),
-            TrayMenuEntry::submenu(
-                "providers",
-                "Providers",
-                vec![TrayMenuEntry::check_item(
-                    "toggle_provider:codex",
-                    "Codex",
-                    false,
-                )],
-            ),
-        ];
-        let dump = TrayMenuDump {
-            generation: 7,
-            timestamp: "2026-01-02T03:04:05+00:00".into(),
-            items: nodes_from_spec(&items),
-        };
-        assert_eq!(
-            serde_json::to_value(&dump).unwrap(),
-            json!({
-                "generation": 7,
-                "timestamp": "2026-01-02T03:04:05+00:00",
-                "items": [
-                    {"id": "status_claude", "text": "Claude 60%", "kind": "item",
-                     "enabled": false, "checked": null, "children": []},
-                    {"id": null, "text": "", "kind": "separator",
-                     "enabled": true, "checked": null, "children": []},
-                    {"id": "refresh", "text": "Refresh all", "kind": "item",
-                     "enabled": true, "checked": null, "children": []},
-                    {"id": "toggle_float_bar", "text": "Show Float Bar", "kind": "check",
-                     "enabled": true, "checked": true, "children": []},
-                    {"id": "providers", "text": "Providers", "kind": "submenu",
-                     "enabled": true, "checked": null, "children": [
-                        {"id": "toggle_provider:codex", "text": "Codex", "kind": "check",
-                         "enabled": true, "checked": false, "children": []}
-                     ]}
-                ]
-            })
-        );
-    }
-
-    #[test]
-    fn activatable_ids_are_enabled_leaves_at_any_depth() {
-        let items = vec![
-            TrayMenuEntry::status_row("status_claude", "Claude 60%"),
-            TrayMenuEntry::separator(),
-            TrayMenuEntry::item("refresh", "Refresh all"),
-            TrayMenuEntry::submenu(
-                "providers",
-                "Providers",
-                vec![TrayMenuEntry::check_item(
-                    "toggle_provider:codex",
-                    "Codex",
-                    false,
-                )],
-            ),
-        ];
-        let ids: Vec<String> = activatable_ids(&nodes_from_spec(&items))
-            .into_iter()
-            .collect();
-        assert_eq!(ids, vec!["refresh", "toggle_provider:codex"]);
-    }
-
-    #[test]
     fn dump_of_built_menu_lists_status_rows_then_actions() {
         let labels = vec![("claude".to_string(), "Claude 60%".to_string())];
-        let enabled = ["claude".to_string()].into_iter().collect();
-        let spec = build_tray_menu_with(
-            &sample_provider_catalog(),
-            &labels,
-            &enabled,
-            MenuState {
-                float_bar_enabled: true,
-                ..MenuState::default()
-            },
-            Language::English,
-        );
+        let spec = build_tray_menu(&labels, Language::English);
         let items = nodes_from_spec(&spec);
         let ids: Vec<Option<&str>> = items.iter().map(|node| node.id.as_deref()).collect();
         assert_eq!(
@@ -348,11 +268,6 @@ mod tests {
                 Some("status_claude"),
                 None,
                 Some("refresh"),
-                Some("pop_out"),
-                Some("toggle_float_bar"),
-                None,
-                Some("providers"),
-                None,
                 Some("settings"),
                 Some("check_for_updates"),
                 Some("about"),
@@ -360,23 +275,7 @@ mod tests {
                 Some("quit"),
             ]
         );
-        let providers = items
-            .iter()
-            .find(|node| node.id.as_deref() == Some("providers"))
-            .expect("providers submenu");
-        assert_eq!(providers.kind, "submenu");
-        let claude = providers
-            .children
-            .iter()
-            .find(|node| node.id.as_deref() == Some("toggle_provider:claude"))
-            .expect("claude toggle");
-        assert_eq!(claude.kind, "check");
-        assert_eq!(claude.checked, Some(true));
-        let codex = providers
-            .children
-            .iter()
-            .find(|node| node.id.as_deref() == Some("toggle_provider:codex"))
-            .expect("codex toggle");
-        assert_eq!(codex.checked, Some(false));
+        assert!(!items[0].enabled);
+        assert_eq!(items[1].kind, "separator");
     }
 }

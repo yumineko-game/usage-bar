@@ -7,14 +7,11 @@ import { useLocale } from "../../../hooks/useLocale";
 import {
   addTokenAccount,
   getTokenAccounts,
-  moveTokenAccount,
   removeTokenAccount,
   setActiveTokenAccount,
-  setTokenAccountClaudeConfigDir,
   triggerProviderLogin,
   updateTokenAccount,
 } from "../../../lib/tauri";
-import { ClaudeConfigDirField } from "./ClaudeConfigDirField";
 
 interface Props {
   providerId: string;
@@ -113,20 +110,6 @@ export function TokenAccountsPanel({ providerId, compact = false }: Props) {
     }
   };
 
-  const handleMove = async (accountId: string, index: number) => {
-    if (!providerId) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await moveTokenAccount(providerId, accountId, index);
-      setData(next);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const handleAdd = async () => {
     if (!providerId || !addLabel.trim() || !addToken.trim()) return;
     setBusy(true);
@@ -175,20 +158,6 @@ export function TokenAccountsPanel({ providerId, compact = false }: Props) {
     }
   };
 
-  const handleClaudeConfigDir = async (accountId: string, directory: string | null) => {
-    if (!providerId) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await setTokenAccountClaudeConfigDir(providerId, accountId, directory);
-      setData(next);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const handleProviderLogin = async () => {
     if (!providerId) return;
     setBusy(true);
@@ -226,7 +195,7 @@ export function TokenAccountsPanel({ providerId, compact = false }: Props) {
 
       {data && data.accounts.length > 0 ? (
         <ul className="credential-list token-accounts-list">
-          {data.accounts.map((acct, index) => (
+          {data.accounts.map((acct) => (
             <li key={acct.id} className="credential-card token-accounts-card">
               <div className="credential-card__header">
                 <div className="credential-card__info">
@@ -255,26 +224,6 @@ export function TokenAccountsPanel({ providerId, compact = false }: Props) {
                     onClick={() => startEdit(acct)}
                   >
                     {t("TokenAccountEdit")}
-                  </button>
-                  <button
-                    type="button"
-                    className="credential-btn credential-btn--secondary"
-                    aria-label={t("TokenAccountMoveUp")}
-                    title={t("TokenAccountMoveUp")}
-                    disabled={busy || index === 0}
-                    onClick={() => void handleMove(acct.id, index - 1)}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className="credential-btn credential-btn--secondary"
-                    aria-label={t("TokenAccountMoveDown")}
-                    title={t("TokenAccountMoveDown")}
-                    disabled={busy || index === data.accounts.length - 1}
-                    onClick={() => void handleMove(acct.id, index + 1)}
-                  >
-                    ↓
                   </button>
                   {!acct.isActive && (
                     <button
@@ -348,14 +297,6 @@ export function TokenAccountsPanel({ providerId, compact = false }: Props) {
                     </button>
                   </div>
                 </form>
-              )}
-              {providerId === "claude" && (
-                <ClaudeConfigDirField
-                  account={acct}
-                  disabled={busy}
-                  t={t}
-                  onChange={(directory) => handleClaudeConfigDir(acct.id, directory)}
-                />
               )}
             </li>
           ))}

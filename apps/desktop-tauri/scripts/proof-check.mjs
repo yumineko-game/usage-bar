@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Browser UI proof over the mocked-IPC proof build (docs/WINDOWS_PROOF.md §5).
+// Browser UI checks against the mocked-IPC proof build.
 // Starts `vite --mode proof` (or uses --url), drives Chrome/Edge/Chromium over
 // CDP through scripts/proof-scenarios.json, prints PASS/FAIL per scenario and
 // saves screenshots. Node built-ins only: fetch, WebSocket, child_process.
@@ -48,7 +48,6 @@ const READY_BY_WINDOW = {
   main: ".tray-panel-reveal--ready",
   flyout: ".tray-panel-reveal--ready",
   settings: ".settings-surface",
-  floatbar: ".floatbar__pill, .floatbar__empty",
 };
 
 function parseArgs(argv) {

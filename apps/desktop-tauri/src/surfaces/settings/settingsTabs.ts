@@ -4,13 +4,7 @@ import type { LocaleKey } from "../../i18n/keys";
 export const TAB_META: { id: SettingsTabId; labelKey: LocaleKey }[] = [
   { id: "general", labelKey: "TabGeneral" },
   { id: "providers", labelKey: "TabProviders" },
-  { id: "notifications", labelKey: "TabNotifications" },
-  { id: "menuBar", labelKey: "TabMenuBar" },
-  { id: "menu", labelKey: "TabMenu" },
-  { id: "usageSpend", labelKey: "TabUsageSpend" },
-  { id: "advanced", labelKey: "TabAdvanced" },
-  { id: "hooks", labelKey: "TabHooks" },
-  { id: "about", labelKey: "TabAbout" },
+  { id: "about", labelKey: "UpdatesTitle" },
 ];
 
 export interface TabProps {
@@ -65,13 +59,7 @@ export interface SidebarPane {
  */
 export const SIDEBAR_PANES: SidebarPane[] = [
   { id: "general", labelKey: "TabGeneral", chip: "gray" },
-  { id: "usageSpend", labelKey: "TabUsageSpend", chip: "green" },
-  { id: "notifications", labelKey: "TabNotifications", chip: "red" },
-  { id: "menuBar", labelKey: "TabMenuBar", chip: "blue" },
-  { id: "menu", labelKey: "TabMenu", chip: "teal" },
-  { id: "advanced", labelKey: "TabAdvanced", chip: "purple" },
-  { id: "hooks", labelKey: "TabHooks", chip: "orange" },
-  { id: "about", labelKey: "TabAbout", chip: null },
+  { id: "about", labelKey: "UpdatesTitle", chip: null },
 ];
 
 interface NamedProvider {

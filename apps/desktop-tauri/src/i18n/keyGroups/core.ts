@@ -253,6 +253,7 @@ export const CORE_LOCALE_KEYS = [
   "PaceInReserve",
   "PaceInDeficit",
   "PaceLastsUntilReset",
+  "PaceForecastUnavailable",
   "PaceDailyTargetPercent",
   "PaceDailyTargetCredits",
   "PaceDailyTargetRequests",

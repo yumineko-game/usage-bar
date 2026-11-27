@@ -7,7 +7,7 @@
       "steps": [
         { "expectText": ["5時間", "1週間", "更新", "設定"] },
         { "expectNoText": ["Session", "Weekly", "Cost", "Usage & Spend", "Conversations", "Resets in"] },
-        { "expectSelector": ".menu-metric__title + .menu-metric__gauge:has(.menu-metric__gauge-pace) + .menu-metric__reset" },
+        { "expectSelector": ".menu-metric__title + .menu-metric__gauge[title]:has(.menu-metric__gauge-pace:not([title])) + .menu-metric__reset" },
         { "expectSelector": ".menu-surface--tray:not(:has(.menu-metric__progress-workday, .menu-metric__progress-warning))" },
         { "expectStyle": { "selector": ".menu-surface--tray", "property": "color-scheme", "value": "dark" } },
         { "expectStyle": { "selector": ".menu-surface--tray", "property": "border-radius", "value": "0px" } },
@@ -32,12 +32,12 @@
       "query": "window=main&fixture=default",
       "size": [310, 1032],
       "steps": [
-        { "expectText": ["dev@example.com", "claude.user@example.com", "34%", "58%"] },
+        { "expectText": ["34%", "58%", "Updates"] },
         { "expectNoText": ["Usage & Spend", "Cost", "1 minute ago"] },
         { "screenshot": "tray-default", "clip": "panel" },
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectNoText": "dev@example.com" },
-        { "expectText": ["claude.user@example.com", "Switch Account..."] },
+        { "expectNoText": ["@example.com", "Switch Account..."] },
+        { "expectText": ["Claude", "Session (5h)"] },
         { "screenshot": "tray-claude-detail", "clip": "panel" }
       ]
     },
@@ -46,7 +46,7 @@
       "query": "window=main&fixture=classic-look",
       "size": [310, 1032],
       "steps": [
-        { "expectText": ["Refresh", "About UsageBar (v"] },
+        { "expectText": ["Refresh", "Updates"] },
         { "expectSelector": ".menu-surface--classic" },
         { "screenshot": "tray-classic-default", "clip": "panel" },
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
@@ -60,8 +60,8 @@
       "size": [310, 1032],
       "steps": [
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": ["claude.user@example.com", "Session (5h)", "22%"] },
-        { "expectNoText": ["Limit Reset Credits", "2 available"] },
+        { "expectText": ["Session (5h)", "22%"] },
+        { "expectText": ["Limit Reset Credits", "2 available"] },
         { "screenshot": "tray-claude-reset-credits", "clip": "panel" }
       ]
     },
@@ -71,8 +71,8 @@
       "size": [310, 1032],
       "steps": [
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": ["claude.user@example.com", "Session (5h)"] },
-        { "expectNoText": ["Limit Reset Credits", "2 available"] },
+        { "expectText": ["Session (5h)"] },
+        { "expectText": ["Limit Reset Credits", "2 available"] },
         { "screenshot": "tray-claude-reset-credits-hidden", "clip": "panel" }
       ]
     },
@@ -82,7 +82,7 @@
       "size": [310, 1032],
       "steps": [
         { "click": { "selector": ".provider-grid__item", "label": "Claude" } },
-        { "expectText": "claude.user@example.com" },
+        { "expectText": "Claude" },
         { "expectNoText": ["Limit Reset Credits", "2 available"] },
         { "screenshot": "tray-claude-reset-credits-absent", "clip": "panel" }
       ]
@@ -103,7 +103,7 @@
       "query": "window=main&fixture=errors",
       "size": [310, 1032],
       "steps": [
-        { "expectText": ["Your Claude session has expired.", "cursor.user@example.com"] },
+        { "expectText": ["Your Claude session has expired.", "Cursor"] },
         { "screenshot": "tray-errors", "clip": "panel" }
       ]
     },
@@ -118,71 +118,11 @@
       ]
     },
     {
-      "name": "tray-overview-all-accounts",
-      "query": "window=main&fixture=overview-all-accounts",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["work@example.com", "personal@example.com", "Claude", "Work", "Personal", "No usage data"] },
-        { "screenshot": "tray-overview-all-accounts", "clip": "panel" }
-      ]
-    },
-    {
-      "name": "tray-overview-all-accounts-private",
-      "query": "window=main&fixture=overview-all-accounts-private",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["Account 1", "Account 2", "No usage data"] },
-        { "expectNoText": ["work@example.com", "personal@example.com"] },
-        { "expectOrder": { "selector": "[id^=\"card-claude/account/\"] .card-header__email", "texts": ["Account 1", "Account 2"] } },
-        { "screenshot": "tray-overview-all-accounts-private", "clip": "panel" }
-      ]
-    },
-    {
-      "name": "tray-overview-claude-swap-accounts",
-      "query": "window=main&fixture=overview-claude-swap-accounts",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["work@example.com", "personal@example.com", "backup@example.com", "No usage data"] },
-        { "screenshot": "tray-overview-claude-swap-accounts", "clip": "panel" }
-      ]
-    },
-    {
-      "name": "tray-overview-claude-swap-accounts-private",
-      "query": "window=main&fixture=overview-claude-swap-accounts-private",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["Account 1", "Account 2", "Account 3", "No usage data"] },
-        { "expectNoText": ["work@example.com", "personal@example.com", "backup@example.com"] },
-        { "screenshot": "tray-overview-claude-swap-accounts-private", "clip": "panel" }
-      ]
-    },
-    {
-      "name": "tray-overview-tcr-accounts",
-      "query": "window=main&fixture=overview-tcr-accounts",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["pool-a@example.com", "pool-b@example.com"] },
-        { "expectNoText": ["No usage data"] },
-        { "screenshot": "tray-overview-tcr-accounts", "clip": "panel" }
-      ]
-    },
-    {
-      "name": "tray-overview-tcr-accounts-private",
-      "query": "window=main&fixture=overview-tcr-accounts-private",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["Account 1", "Account 2"] },
-        { "expectNoText": ["No usage data"] },
-        { "expectNoText": ["pool-a@example.com", "pool-b@example.com"] },
-        { "screenshot": "tray-overview-tcr-accounts-private", "clip": "panel" }
-      ]
-    },
-    {
       "name": "flyout-default",
       "query": "window=flyout&fixture=default",
       "size": [310, 1032],
       "steps": [
-        { "expectText": "dev@example.com" },
+        { "expectText": "Codex" },
         { "screenshot": "flyout-default", "clip": "panel" }
       ]
     },
@@ -192,7 +132,7 @@
       "size": [310, 1032],
       "steps": [
         { "click": { "selector": ".provider-grid__item", "label": "Cursor" } },
-        { "expectText": ["Cursor", "Weekly", "cursor.user@example.com", "10%"] },
+        { "expectText": ["Cursor", "Cursor", "Weekly", "10%"] },
         { "expectNoText": ["Grok Bot", "Auto", "API"] },
         { "screenshot": "tray-cursor-weekly", "clip": "panel" }
       ]
@@ -213,11 +153,13 @@
       "size": [880, 620],
       "steps": [
         { "expectTheme": "dark" },
-        { "expectText": ["Refresh interval", "Start at login"] },
+        { "expectText": ["Start at login", "Start minimized"] },
         { "screenshot": "settings-general-dark" },
-        { "click": { "selector": "button", "label": "Menu" } },
-        { "expectText": "Panel scale" },
-        { "screenshot": "settings-menu-after-click" }
+        { "expectNoText": ["Refresh interval", "Notifications", "Usage & Spend", "Hooks", "Panel scale"] },
+        { "click": { "selector": "button", "label": "Updates" } },
+        { "expectText": "Update from GitHub" },
+        { "expectNoText": ["Automatically download updates", "Update channel"] },
+        { "screenshot": "settings-updates-after-click" }
       ]
     },
     {
@@ -226,7 +168,7 @@
       "size": [880, 620],
       "steps": [
         { "expectTheme": "light" },
-        { "expectText": "Refresh interval" },
+        { "expectText": "Start at login" },
         { "screenshot": "settings-general-light" }
       ]
     },
@@ -237,7 +179,7 @@
       "steps": [
         { "expectCall": { "cmd": "get_system_theme" } },
         { "expectTheme": "light" },
-        { "expectText": "Refresh interval" },
+        { "expectText": "Start at login" },
         { "screenshot": "settings-auto-follows-windows-light" }
       ]
     },
@@ -248,7 +190,7 @@
       "steps": [
         { "expectCall": { "cmd": "get_system_theme" } },
         { "expectTheme": "dark" },
-        { "expectText": "Refresh interval" },
+        { "expectText": "Start at login" },
         { "screenshot": "settings-auto-follows-windows-dark" }
       ]
     },
@@ -259,23 +201,6 @@
       "steps": [
         { "expectText": ["Codex", "Claude"] },
         { "screenshot": "settings-providers" }
-      ]
-    },
-    {
-      "name": "settings-provider-sidebar-restore-default",
-      "query": "window=settings&tab=providers&theme=dark",
-      "size": [880, 620],
-      "steps": [
-        { "expectText": ["Codex", "Claude"] },
-        { "click": { "selector": "button", "label": "Provider list options" } },
-        { "expectText": ["Only show enabled providers", "Restore default order"] },
-        { "expectSelector": ".providers-sidebar-menu > button:nth-of-type(2):disabled" },
-        { "screenshot": "settings-provider-sidebar-restore-default-disabled" },
-        { "key": "Escape" },
-        { "click": { "selector": "button", "label": "Sort providers alphabetically" } },
-        { "click": { "selector": "button", "label": "Provider list options" } },
-        { "expectSelector": ".providers-sidebar-menu > button:nth-of-type(2):not(:disabled)" },
-        { "screenshot": "settings-provider-sidebar-restore-default-sorted" }
       ]
     },
     {
@@ -306,57 +231,6 @@
       ]
     },
     {
-      "name": "settings-about-acknowledgements",
-      "query": "window=settings&tab=about&theme=dark",
-      "size": [880, 620],
-      "steps": [
-        { "expectText": ["UsageBar", "Acknowledgements"] },
-        { "click": { "selector": "button", "label": "Update from GitHub" } },
-        { "expectText": ["You're up to date!"] },
-        { "screenshot": "settings-about-usagebar" },
-        { "click": { "selector": ".settings-link-row span", "label": "Acknowledgements" } },
-        { "expectText": ["UsageBar is built with these open-source projects.", "tauri", "react", "codexcontrol"] },
-        { "screenshot": "settings-about-acknowledgements" },
-        { "click": { "selector": ".acknowledgement__name", "label": "tauri" } },
-        { "expectText": ["Apache License", "https://github.com/tauri-apps/tauri"] },
-        { "screenshot": "settings-about-acknowledgement-open" },
-        { "click": { "selector": ".acknowledgement__name", "label": "webview2-com" } },
-        { "expectText": ["Standard license text. This package ships no license file.", "Copyright (c) webview2-com contributors"] },
-        { "screenshot": "settings-about-acknowledgement-standard" }
-      ]
-    },
-    {
-      "name": "settings-openaiapi-tokens-per-minute-metric",
-      "query": "window=settings&tab=providers:openaiapi&theme=dark",
-      "size": [880, 620],
-      "steps": [
-        { "expectText": ["OpenAI API", "Menu and floating bar metric", "Tokens/min"] },
-        { "expectField": { "label": "Menu and floating bar metric", "value": "automatic" } },
-        { "select": { "label": "Menu and floating bar metric", "value": "tokensPerMinute" } },
-        { "expectCall": { "cmd": "update_settings", "args": { "patch": { "providerMetrics": { "openaiapi": "tokensPerMinute" } } } } },
-        { "expectField": { "label": "Menu and floating bar metric", "value": "tokensPerMinute" } },
-        { "screenshot": "settings-openaiapi-tokens-per-minute-metric" }
-      ]
-    },
-    {
-      "name": "settings-cursor-named-extra-metric",
-      "query": "window=settings&tab=providers:cursor&theme=dark",
-      "size": [880, 620],
-      "steps": [
-        { "expectText": ["Cursor", "Menu and floating bar metric", "Grok Bot"] },
-        { "expectField": { "label": "Menu and floating bar metric", "value": "automatic" } },
-        { "select": { "label": "Menu and floating bar metric", "value": "extra:cursor-grok-bot" } },
-        { "expectCall": { "cmd": "update_settings", "args": { "patch": { "providerMetrics": { "cursor": "extra:cursor-grok-bot" } } } } },
-        { "expectField": { "label": "Menu and floating bar metric", "value": "extra:cursor-grok-bot" } },
-        { "click": { "selector": ".settings-field__label", "label": "Menu and floating bar metric" } },
-        { "screenshot": "settings-cursor-named-extra-metric" },
-        { "click": { "selector": ".providers-sidebar__name", "label": "Codex" } },
-        { "expectText": "dev@example.com" },
-        { "expectNoText": "Grok Bot" },
-        { "screenshot": "settings-codex-no-named-extra-metric" }
-      ]
-    },
-    {
       "name": "settings-claudeplatform-cookie-source",
       "query": "window=settings&tab=providers:claudeplatform&fixture=claudeplatform&theme=dark",
       "size": [880, 620],
@@ -372,40 +246,6 @@
         { "expectCall": { "cmd": "set_provider_cookie_source", "args": { "providerId": "claudeplatform", "source": "auto" } } },
         { "expectSelector": ".provider-detail-cookie-source .provider-detail-segmented__option.is-active" },
         { "screenshot": "settings-claudeplatform-cookie-source" }
-      ]
-    },
-    {
-      "name": "settings-menu-work-days",
-      "query": "window=settings&tab=menu&theme=dark",
-      "size": [880, 620],
-      "steps": [
-        { "expectField": { "label": "Work days", "value": "", "options": ["Automatic", "4 days", "5 days", "6 days", "7 days"] } },
-        { "expectField": { "label": "Workday tick appearance", "enabled": false } },
-        { "screenshot": "settings-menu-work-days-automatic" },
-        { "select": { "label": "Work days", "value": "6" } },
-        { "expectField": { "label": "Work days", "value": "6" } },
-        { "expectField": { "label": "Workday tick appearance", "enabled": true } },
-        { "expectCall": { "cmd": "update_settings", "args": { "patch": { "weeklyProgressWorkDays": 6 } } } },
-        { "screenshot": "settings-menu-work-days-6" }
-      ]
-    },
-    {
-      "name": "settings-menu-agent-sessions-local-only",
-      "query": "window=settings&tab=menu&theme=dark",
-      "size": [880, 620],
-      "steps": [
-        { "expectText": ["Local sessions only", "Skip Tailscale and SSH discovery. Only sessions on this PC are shown."] },
-        { "expectSelector": "input[aria-label=\"Local sessions only\"]:disabled" },
-        { "expectSelector": "input[aria-label=\"Local sessions only\"]:not(:checked)" },
-        { "screenshot": "settings-menu-agent-sessions-local-only-disabled" },
-        { "click": { "selector": "input", "label": "Agent sessions" } },
-        { "expectCall": { "cmd": "update_settings", "args": { "patch": { "agentSessionsEnabled": true } } } },
-        { "expectSelector": "input[aria-label=\"Local sessions only\"]:not(:disabled)" },
-        { "click": { "selector": "input", "label": "Local sessions only" } },
-        { "expectCall": { "cmd": "update_settings", "args": { "patch": { "agentSessionsLocalOnly": true } } } },
-        { "expectSelector": "input[aria-label=\"Local sessions only\"]:checked" },
-        { "expectSelector": "input[aria-label=\"Additional SSH hosts\"]:disabled" },
-        { "screenshot": "settings-menu-agent-sessions-local-only-on" }
       ]
     },
     {
@@ -431,25 +271,6 @@
         { "expectCall": { "cmd": "list_detected_browsers", "args": { "providerId": "claude" } } },
         { "click": { "selector": "h4", "label": "Browser Cookies" } },
         { "screenshot": "settings-claude-cookie-no-browsers" }
-      ]
-    },
-    {
-      "name": "settings-claude-token-account-config-dir",
-      "query": "window=settings&tab=providers:claude&fixture=default&theme=dark",
-      "size": [880, 620],
-      "steps": [
-        { "click": { "selector": "summary", "label": "Token accounts1/2" } },
-        { "expectText": ["Claude config directory", "C:\\Users\\proof\\.claude-work", "Unavailable", "Choose folder…"] },
-        { "screenshot": "settings-claude-token-account-config-dir" },
-        { "click": { "selector": "button", "label": "Clear C:\\Users\\proof\\.claude-work" } },
-        {
-          "expectCall": {
-            "cmd": "set_token_account_claude_config_dir",
-            "args": { "providerId": "claude", "accountId": "00000000-0000-4000-8000-00000000c1a1", "directory": null }
-          }
-        },
-        { "expectNoText": ["C:\\Users\\proof\\.claude-work", "Unavailable"] },
-        { "screenshot": "settings-claude-token-account-config-dir-cleared" }
       ]
     },
     {
@@ -498,142 +319,7 @@
       ]
     },
     {
-      "name": "settings-advanced-http-server",
-      "query": "window=settings&tab=advanced&theme=dark",
-      "size": [880, 620],
-      "steps": [
-        { "expectText": ["HTTP server", "Enable HTTP server", "Stopped"] },
-        { "click": { "selector": "input", "label": "Enable HTTP server" } },
-        { "click": { "selector": "button", "label": "Apply" } },
-        { "expectCall": { "cmd": "apply_http_server_config", "args": { "config": { "enabled": true, "host": "127.0.0.1", "port": 8080, "token": "", "refreshIntervalSecs": 60, "requestTimeoutSecs": 30, "identity": "redacted", "allowPlainHttp": false } } } },
-        { "expectText": "Generate a token or enter a nonempty token without spaces." },
-        { "screenshot": "settings-advanced-http-server-invalid" },
-        { "click": { "selector": "button", "label": "Generate" } },
-        { "click": { "selector": "button", "label": "Apply" } },
-        { "expectText": ["Running", "http://127.0.0.1:8080/"] },
-        { "screenshot": "settings-advanced-http-server-running" }
-      ]
-    },
-    {
-      "name": "settings-advanced-share-usage-with-cli",
-      "query": "window=settings&tab=advanced&theme=dark",
-      "size": [880, 620],
-      "steps": [
-        { "expectText": ["Share usage with the CLI", "Emails, plans, costs and credentials are not included."] },
-        { "expectSelector": "input[aria-label=\"Share usage with the CLI\"]:not(:checked)" },
-        { "screenshot": "settings-advanced-share-usage-with-cli-off" },
-        { "click": { "selector": "input", "label": "Share usage with the CLI" } },
-        { "expectCall": { "cmd": "update_settings", "args": { "patch": { "shareUsageWithCli": true } } } },
-        { "expectSelector": "input[aria-label=\"Share usage with the CLI\"]:checked" },
-        { "screenshot": "settings-advanced-share-usage-with-cli-on" }
-      ]
-    },
-    {
-      "name": "settings-usage-spend-tool-activity",
-      "query": "window=settings&tab=usageSpend&fixture=codex-tool-activity&theme=dark",
-      "size": [880, 900],
-      "steps": [
-        { "click": { "selector": "[role=tab]", "label": "Sessions" } },
-        { "expectText": "Fix the proof harness" },
-        { "click": { "selector": "[role=listitem] strong", "label": "Fix the proof harness" } },
-        { "expectNoText": "Timing available" },
-        { "click": { "selector": "button", "label": "Tool activity" } },
-        {
-          "expectCall": {
-            "cmd": "get_codex_session_tool_activity",
-            "args": { "sessionId": "proof-session-tools", "historyDays": 30 }
-          }
-        },
-        {
-          "expectText": [
-            "Operations: 6 · Needs review: 2 · Timing available: 5 / 6",
-            "Longest execution: 48.2 s · shell",
-            "Partial coverage: some records are incomplete",
-            "pnpm test --run",
-            "Nonzero exit · Exit code 101",
-            "2.4 s (Recorded interval)",
-            "95 ms"
-          ]
-        },
-        { "screenshot": "settings-usage-spend-tool-activity-all" },
-        { "click": { "selector": "button", "label": "Needs review" } },
-        { "expectText": ["cargo clippy --all-targets", "docs/search", "Tool error"] },
-        { "expectNoText": ["pnpm test --run", "git status --short"] },
-        { "screenshot": "settings-usage-spend-tool-activity-review" },
-        { "click": { "selector": "button", "label": "Slow (≥10 s)" } },
-        { "expectText": ["pnpm test --run", "cargo clippy --all-targets"] },
-        { "expectNoText": ["docs/search", "git status --short"] },
-        { "screenshot": "settings-usage-spend-tool-activity-slow" }
-      ]
-    },
-    {
-      "name": "settings-usage-spend-session-inspector",
-      "query": "window=settings&tab=usageSpend&fixture=codex-session-inspector&theme=dark",
-      "size": [880, 900],
-      "steps": [
-        { "click": { "selector": "[role=tab]", "label": "Sessions" } },
-        {
-          "expectOrder": {
-            "selector": "[role=listitem] strong",
-            "texts": ["Port the session inspector", "Review the parser fixture", "Index the archived rollouts"]
-          }
-        },
-        { "expectText": "Select a session" },
-        { "expectNoCall": { "cmd": "get_codex_session_details" } },
-        { "screenshot": "settings-usage-spend-session-inspector-list" },
-        { "type": { "selector": "input", "label": "Search sessions", "text": "parser" } },
-        { "expectOrder": { "selector": "[role=listitem] strong", "texts": ["Review the parser fixture"] } },
-        { "type": { "selector": "input", "label": "Search sessions", "text": "b002" } },
-        { "expectOrder": { "selector": "[role=listitem] strong", "texts": ["Index the archived rollouts"] } },
-        { "type": { "selector": "input", "label": "Search sessions", "text": "no such session" } },
-        { "expectText": "No matching sessions" },
-        { "type": { "selector": "input", "label": "Search sessions", "text": "0000" } },
-        { "click": { "selector": "button", "label": "Descending" } },
-        {
-          "expectOrder": {
-            "selector": "[role=listitem] strong",
-            "texts": ["Index the archived rollouts", "Review the parser fixture", "Port the session inspector"]
-          }
-        },
-        { "click": { "selector": "[role=listitem] strong", "label": "Port the session inspector" } },
-        {
-          "expectCall": {
-            "cmd": "get_codex_session_details",
-            "args": { "sessionId": "019f0000-0000-7000-8000-00000000b001", "historyDays": 30 }
-          }
-        },
-        {
-          "expectText": [
-            "Model requests",
-            "Cached input is included in input; reasoning is included in output.",
-            "Turn 1",
-            "Turn 2",
-            "Unattributed usage",
-            "$0.4213",
-            "$0.2213",
-            "Tool activity has no separate recorded token or monetary cost."
-          ]
-        },
-        { "screenshot": "settings-usage-spend-session-inspector-detail" },
-        { "click": { "selector": "[role=listitem] strong", "label": "Index the archived rollouts" } },
-        { "expectText": "Request details exceed the limit." },
-        { "expectNoText": "Turn 1" },
-        { "click": { "selector": "[role=listitem] strong", "label": "Review the parser fixture" } },
-        { "expectText": "Request details are unavailable. Refresh usage and try again." },
-        { "screenshot": "settings-usage-spend-session-inspector-unavailable" }
-      ]
-    },
-    {
-      "name": "settings-usage-spend-unknown-model-tokens",
-      "query": "window=settings&tab=usageSpend&fixture=usage-spend-unknown-tokens&theme=dark",
-      "size": [880, 900],
-      "steps": [
-        { "expectText": ["gpt-5-codex", "gpt-5-mini", "Unknown"] },
-        { "screenshot": "settings-usage-spend-unknown-model-tokens" }
-      ]
-    },
-    {
-      "name": "settings-claude-token-account-edit-reorder",
+      "name": "settings-claude-token-account-edit",
       "query": "window=settings&tab=providers:claude&fixture=default&theme=dark",
       "size": [
         880,
@@ -706,90 +392,8 @@
           }
         },
         {
-          "click": {
-            "selector": "button",
-            "label": "Move up",
-            "near": "Personal (renamed)"
-          }
-        },
-        {
-          "expectCall": {
-            "cmd": "move_token_account",
-            "args": {
-              "providerId": "claude",
-              "accountId": "00000000-0000-4000-8000-00000000c1a2",
-              "index": 0
-            }
-          }
-        },
-        {
-          "expectOrder": {
-            "selector": ".token-accounts-card > .credential-card__header > .credential-card__info > strong",
-            "texts": [
-              "Personal (renamed)",
-              "Work"
-            ]
-          }
-        },
-        {
-          "expectSelector": ".token-accounts-card:nth-child(2) .credential-card__badge--set"
-        },
-        {
-          "screenshot": "settings-claude-token-account-edit-reorder"
+          "screenshot": "settings-claude-token-account-edit"
         }
-      ]
-    },
-    {
-      "name": "settings-claude-swap-tcr",
-      "query": "window=settings&tab=providers:claude&fixture=claude-swap-tcr&theme=dark",
-      "size": [880, 900],
-      "steps": [
-        { "expectText": ["Claude accounts in tcr", "External accounts reported by tcr.", "pool-a@example.com", "pool-b@example.com", "Estimated: 5 session quotas left"] },
-        { "expectText": ["Session 42% used · Weekly 18% used", "Session 7% used · Weekly 63% used"] },
-        { "expectText": ["tcr executable", "Path to the tcr executable (github.com/dhkts1/teamclaude-rs).", "it does not switch accounts"] },
-        { "expectField": { "label": "Source", "value": "tcr", "options": ["claude-swap", "tcr"] } },
-        { "expectNoText": ["Switch via claude-swap", "Re-authenticate via claude-swap", "claude-swap accounts"] },
-        { "click": { "selector": "h4", "label": "Claude accounts in tcr" } },
-        { "screenshot": "settings-claude-swap-tcr-cards" },
-        { "click": { "selector": ".settings-field__label", "label": "tcr executable" } },
-        { "screenshot": "settings-claude-swap-tcr-options" },
-        { "select": { "label": "Source", "value": "claude-swap" } },
-        { "expectCall": { "cmd": "update_settings", "args": { "patch": { "claudeSwapSource": "claude-swap" } } } },
-        { "expectText": ["claude-swap accounts", "claude-swap reported no accounts.", "claude-swap executable"] },
-        { "expectNoText": ["pool-a@example.com", "Claude accounts in tcr"] },
-        { "click": { "selector": "h4", "label": "claude-swap accounts" } },
-        { "screenshot": "settings-claude-swap-tcr-back-to-cswap" }
-      ]
-    },
-    {
-      "name": "settings-claude-swap-tcr-remaining",
-      "query": "window=settings&tab=providers:claude&fixture=claude-swap-tcr-remaining&theme=dark",
-      "size": [880, 900],
-      "steps": [
-        { "expectText": ["pool-a@example.com", "Session 58% left · Weekly 82% left", "Session 93% left · Weekly 37% left"] },
-        { "expectNoText": ["42% used", "18% used"] },
-        { "click": { "selector": "h4", "label": "Claude accounts in tcr" } },
-        { "screenshot": "settings-claude-swap-tcr-remaining-cards" }
-      ]
-    },
-    {
-      "name": "floatbar",
-      "query": "window=floatbar",
-      "size": [520, 120],
-      "steps": [
-        { "expectSelector": ".floatbar__pill" },
-        { "expectText": "%" },
-        { "screenshot": "floatbar" }
-      ]
-    },
-    {
-      "name": "tray-agent-sessions-hosts",
-      "query": "window=main&fixture=agent-sessions-hosts",
-      "size": [310, 1032],
-      "steps": [
-        { "expectText": ["WORKSTATION-A — 2", "BUILD-BOX — 1", "LAB-HOST — unreachable", "ssh: connection timed out", "example-project"] },
-        { "expectNoText": "LAB-HOST — 0" },
-        { "screenshot": "tray-agent-sessions-hosts", "clip": "panel" }
       ]
     }
   ]

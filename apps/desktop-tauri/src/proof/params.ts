@@ -1,8 +1,7 @@
 import type { ThemePreference } from "../types/bridge";
-import { FLOATBAR_WINDOW_LABEL } from "../floatbar/api";
 import { isProofScenarioName, type ProofScenarioName } from "./fixtures/scenarios";
 
-export const PROOF_WINDOWS = ["main", "settings", "flyout", "floatbar"] as const;
+export const PROOF_WINDOWS = ["main", "settings", "flyout"] as const;
 export type ProofWindow = (typeof PROOF_WINDOWS)[number];
 
 /** The Windows app theme that the `get_system_theme` fixture reports. */
@@ -47,5 +46,5 @@ export function parseProofParams(search: string): ProofParams {
 }
 
 export function windowLabel(window: ProofWindow): string {
-  return window === "floatbar" ? FLOATBAR_WINDOW_LABEL : window;
+  return window;
 }

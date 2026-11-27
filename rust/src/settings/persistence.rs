@@ -37,7 +37,52 @@ impl Settings {
 
         settings.resolve_system_language();
 
+        if std::env::var_os("CODEXBAR_PROCESS").as_deref() == Some(std::ffi::OsStr::new("desktop"))
+        {
+            settings.apply_desktop_feature_policy();
+        }
         settings
+    }
+
+    // Legacy files can still contain these preferences after an upgrade.
+    // Leave credentials and provider connection choices intact when loading them.
+    fn apply_desktop_feature_policy(&mut self) {
+        self.agent_sessions_enabled = false;
+        self.stay_awake_enabled = false;
+        self.float_bar_enabled = false;
+        self.status_checks_enabled = false;
+        self.hooks_enabled = false;
+        self.powertoys_status_pipe_enabled = false;
+        self.share_usage_with_cli = false;
+        self.show_notifications = false;
+        self.sound_enabled = false;
+        self.credential_expiry_notifications_enabled = false;
+        self.session_quota_notifications_enabled = false;
+        self.limit_reset_notifications_enabled = false;
+        self.predictive_pace_warning_enabled = false;
+        if let Some(config) = self.provider_configs.get_mut(&ProviderId::Codex) {
+            config.opencode_local_history_enabled = false;
+            config.local_session_cost_ledger_enabled = false;
+        }
+        self.provider_config_mut(ProviderId::OpenAIApi)
+            .live_usage_enabled = Some(false);
+        self.cost_usage_enabled = false;
+        self.open_codex_usage_logs_enabled = false;
+        self.merged_overview_all_accounts = false;
+        self.tray_panel_always_on_top = false;
+        self.tray_panel_movable = false;
+        self.tray_icon_mode = TrayIconMode::Single;
+        self.show_pace = true;
+        self.update_channel = UpdateChannel::Stable;
+        self.auto_download_updates = false;
+        self.install_updates_on_quit = false;
+        self.global_shortcut.clear();
+        self.switcher_shortcuts.clear();
+        for config in self.provider_configs.values_mut() {
+            config.auto_resume_after_quota_reset = false;
+            config.optional_details_enabled = false;
+            config.hidden_usage_item_ids = None;
+        }
     }
 
     /// Whether Agent Sessions may run Tailscale or SSH discovery right now.

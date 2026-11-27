@@ -93,6 +93,7 @@ fn open_with_anchor(
         .lock()
         .map_err(|e| e.to_string())?
         .flyout_cursor_anchor = cursor;
+    crate::auto_refresh::note_menu_open();
     let settings = Settings::load();
     if let Some(window) = app.get_webview_window(FLYOUT_LABEL) {
         apply_window_always_on_top(&window, settings.tray_panel_always_on_top)?;
@@ -189,17 +190,6 @@ fn apply_window_always_on_top(window: &tauri::WebviewWindow, enabled: bool) -> R
         .map_err(|error| error.to_string())
 }
 
-/// Reapply the setting to the already-created flyout. The label lookup keeps
-/// this native mutation scoped to the tray-panel window.
-pub fn apply_always_on_top(app: &AppHandle, settings: &Settings) {
-    let Some(window) = app.get_webview_window(FLYOUT_LABEL) else {
-        return;
-    };
-    if let Err(error) = apply_window_always_on_top(&window, settings.tray_panel_always_on_top) {
-        tracing::warn!(%error, "failed to apply tray panel always-on-top setting");
-    }
-}
-
 /// Whether losing focus hides the flyout. Next to the tray it behaves like a
 /// menu and closes. Always on top keeps it. A panel the user moved away from
 /// the tray (`placed`) stays open like a window too: it can be covered, and
@@ -233,18 +223,6 @@ fn reanchor_to_tray(app: &AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?
         .flyout_cursor_anchor = None;
     reanchor(app)
-}
-
-/// Reapply the Movable panel setting to an open flyout: turning it off puts
-/// the panel back next to the tray. The remembered spot is kept, so turning
-/// the setting on again reopens the panel there.
-pub fn apply_movable(app: &AppHandle, settings: &Settings) {
-    if settings.tray_panel_movable || !is_open(app) {
-        return;
-    }
-    if let Err(error) = reanchor_to_tray(app) {
-        tracing::warn!(%error, "failed to re-anchor the tray panel after Movable panel was turned off");
-    }
 }
 
 fn show_grace_starts_now(first_build_hidden: bool) -> bool {

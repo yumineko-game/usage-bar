@@ -24,6 +24,8 @@ export interface TrayPanelLayoutOptions {
   zoom?: number;
   /** Panel width in px at 100 % scale (Settings, or a drag in progress). */
   baseWidth?: number;
+  /** Panel height in px at 100 % scale, independent of fetched data. */
+  fixedHeight?: number;
 }
 
 export interface TrayPanelLayout {
@@ -36,6 +38,7 @@ export function useTrayPanelLayout({
   layoutKey,
   zoom = 1,
   baseWidth = TRAY_PANEL_WIDTH_DEFAULT,
+  fixedHeight,
 }: TrayPanelLayoutOptions): TrayPanelLayout {
   const [layoutReady, setLayoutReady] = useState(false);
   const [layoutRevision, setLayoutRevision] = useState(0);
@@ -228,7 +231,12 @@ export function useTrayPanelLayout({
           surfaceRect.bottom,
         );
         const height = Math.min(
-          Math.max(Math.ceil(contentBottom - spare) + TRAY_HEIGHT_SLACK, TRAY_MIN_HEIGHT),
+          Math.max(
+            fixedHeight == null
+              ? Math.ceil(contentBottom - spare) + TRAY_HEIGHT_SLACK
+              : Math.ceil(fixedHeight * zoom),
+            TRAY_MIN_HEIGHT,
+          ),
           maxHeight,
         );
 
@@ -252,6 +260,9 @@ export function useTrayPanelLayout({
         );
         sizingStateRef.current = decision.state;
         surface.style.maxHeight = `${decision.height / zoom}px`;
+        if (fixedHeight != null) {
+          surface.style.setProperty("--tray-fixed-height", surface.style.maxHeight);
+        }
         committedHeight = true;
 
         if (decision.commit) {
@@ -298,7 +309,7 @@ export function useTrayPanelLayout({
       window.clearTimeout(timer);
       resizeRunRef.current += 1;
     };
-  }, [canMeasure, layoutRevision, applySize, zoom, baseWidth]);
+  }, [canMeasure, layoutRevision, applySize, zoom, baseWidth, fixedHeight]);
 
   return { layoutReady, requestLayout };
 }

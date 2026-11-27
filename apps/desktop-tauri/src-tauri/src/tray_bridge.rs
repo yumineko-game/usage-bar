@@ -2,7 +2,6 @@
 
 use std::sync::Mutex;
 
-use crate::commands::ProviderCatalogEntry;
 use codexbar::settings::Settings;
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItemBuilder, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -11,7 +10,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::shell;
 use crate::state::{AppState, TrayAnchor};
-use crate::tray_menu::{MenuState, TrayMenuEntry, build_tray_menu_with};
+use crate::tray_menu::{TrayMenuEntry, build_tray_menu};
 use crate::tray_presentation::TrayPresentationPlan;
 
 #[derive(Debug, Clone, Copy)]
@@ -109,32 +108,10 @@ fn resolve_tray_anchor(
 
 fn build_native_tray_menu(
     app: &AppHandle,
-    providers: &[ProviderCatalogEntry],
     status_labels: &[(String, String)],
 ) -> tauri::Result<Menu<tauri::Wry>> {
     let settings = Settings::load();
-    let enabled = settings.enabled_providers.clone();
-    let mut spec = build_tray_menu_with(
-        providers,
-        status_labels,
-        &enabled,
-        MenuState {
-            float_bar_enabled: settings.float_bar_enabled,
-            stay_awake_held: crate::stay_awake::is_held(),
-        },
-        settings.ui_language,
-    );
-    // Callers release the AppState lock before building the tray menu.
-    let claude_usage = app
-        .try_state::<Mutex<AppState>>()
-        .and_then(|state| {
-            state
-                .lock()
-                .ok()
-                .map(|guard| guard.claude_account_usage.clone())
-        })
-        .unwrap_or_default();
-    crate::tray_accounts::prepend_account_menus(&mut spec, &settings, &claude_usage);
+    let spec = build_tray_menu(status_labels, settings.ui_language);
     let entries = spec
         .iter()
         .map(|entry| build_native_menu_entry(app, entry))
@@ -150,34 +127,18 @@ fn build_native_tray_menu(
 pub(crate) enum MenuAction {
     /// Open Settings/About in a detached window.
     OpenSettings(String),
-    /// Open (or focus) the dedicated flyout ("Pop Out Dashboard") window.
-    OpenFlyout,
     Refresh,
     CheckForUpdates,
-    /// Toggle the enabled/disabled state of the provider with the given CLI name.
-    ToggleProvider(String),
-    /// Toggle the floating bar window on/off.
-    ToggleFloatBar,
-    Account(crate::tray_accounts::AccountMenuAction),
     Quit,
 }
 
 pub(crate) fn resolve_menu_action(id: &str) -> Option<MenuAction> {
-    if let Some(action) = crate::tray_accounts::resolve_action(id) {
-        return Some(MenuAction::Account(action));
-    }
     match id {
         "refresh" => Some(MenuAction::Refresh),
         "check_for_updates" => Some(MenuAction::CheckForUpdates),
         "quit" => Some(MenuAction::Quit),
         "settings" => Some(MenuAction::OpenSettings("general".into())),
         "about" => Some(MenuAction::OpenSettings("about".into())),
-        "toggle_float_bar" => Some(MenuAction::ToggleFloatBar),
-        "pop_out" => Some(MenuAction::OpenFlyout),
-        _ if id.starts_with("toggle_provider:") => {
-            let provider_id = id["toggle_provider:".len()..].to_string();
-            Some(MenuAction::ToggleProvider(provider_id))
-        }
         _ => None,
     }
 }
@@ -207,7 +168,7 @@ fn store_anchor(app: &AppHandle, rect: &tauri::Rect, click_position: tauri::Phys
 /// - **Left-click** toggles the custom tray panel via the surface state machine.
 /// - **Right-click** opens the native context menu with shell actions.
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let menu = build_native_tray_menu(app.handle(), &crate::commands::get_provider_catalog(), &[])?;
+    let menu = build_native_tray_menu(app.handle(), &[])?;
 
     // Embed the icon at compile time so it works regardless of working directory.
     let icon_bytes = include_bytes!("../../../../rust/icons/icon.png");
@@ -255,7 +216,9 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // by Windows only after the icon is first registered, so on first run /
     // post-upgrade the subkey may not exist yet — apply_promotion tolerates
     // EntryNotFound. Retry a few times while explorer finishes registration.
-    schedule_tray_promotion_retries(app.handle().clone());
+    if !crate::proof_harness::is_proof_mode(app.handle()) {
+        schedule_tray_promotion_retries(app.handle().clone());
+    }
 
     Ok(())
 }
@@ -285,20 +248,8 @@ fn schedule_tray_promotion_retries(app_handle: AppHandle) {
 /// Route a native menu-item click to the corresponding shell action.
 fn handle_menu_event(app: &AppHandle, id: &str) {
     match resolve_menu_action(id) {
-        Some(MenuAction::Account(action)) => crate::tray_accounts::handle_action(app, action),
         Some(MenuAction::OpenSettings(tab)) => {
             let _ = shell::settings_window::open_or_focus(app, &tab);
-        }
-        Some(MenuAction::OpenFlyout) => {
-            // Pass None: open_or_focus falls back to the tray-anchored
-            // default position (same placement chain the old TrayPanel
-            // transition used) when no explicit position is given.
-            crate::auto_refresh::note_menu_open();
-            let _ = shell::flyout_window::open_or_focus(
-                app,
-                None,
-                shell::activation::Activation::UserAction,
-            );
         }
         Some(MenuAction::Refresh) => {
             let handle = app.clone();
@@ -312,42 +263,6 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
                 let state = handle.state::<Mutex<AppState>>();
                 let _ = crate::commands::check_for_updates(handle.clone(), state).await;
             });
-        }
-        Some(MenuAction::ToggleProvider(provider_id)) => {
-            let write_guard = crate::commands::lock_settings_writes();
-            let mut settings = Settings::load();
-            if settings.enabled_providers.contains(&provider_id) {
-                settings.enabled_providers.remove(&provider_id);
-            } else {
-                settings.enabled_providers.insert(provider_id);
-            }
-            let saved = settings.save();
-            drop(write_guard);
-            if saved.is_err() {
-                rebuild_tray_menu(app);
-                return;
-            }
-            // Same follow-up as `update_settings`: without the prune and the
-            // broadcast, open surfaces keep the disabled provider's card.
-            let enabled_ids = settings.get_enabled_provider_ids();
-            if let Some(state) = app.try_state::<Mutex<AppState>>() {
-                let _ = crate::commands::invalidate_provider_refresh_and_prune_disabled(
-                    &state,
-                    &enabled_ids,
-                );
-            }
-            crate::floatbar::notify_settings_changed(app);
-            crate::status_poller::settings_changed(app, &settings, false);
-            refresh_tray_presentation(app);
-            crate::events::emit_settings_changed(app);
-            let handle = app.clone();
-            tauri::async_runtime::spawn(async move {
-                let _ = crate::commands::do_refresh_providers(&handle).await;
-            });
-        }
-        Some(MenuAction::ToggleFloatBar) => {
-            crate::floatbar::toggle(app);
-            rebuild_tray_menu(app);
         }
         Some(MenuAction::Quit) => {
             app.exit(0);
@@ -417,7 +332,6 @@ fn install_tray_menu(app: &AppHandle, menu: Menu<tauri::Wry>) {
 
 /// Rebuild the native tray menu from current provider + settings state.
 pub(crate) fn rebuild_tray_menu(app: &AppHandle) {
-    let catalog = crate::commands::get_provider_catalog();
     let settings = Settings::load();
     let rates_cache = app
         .try_state::<crate::commands::CurrencyRateCache>()
@@ -429,7 +343,7 @@ pub(crate) fn rebuild_tray_menu(app: &AppHandle) {
     } else {
         vec![]
     };
-    if let Ok(menu) = build_native_tray_menu(app, &catalog, &status_labels) {
+    if let Ok(menu) = build_native_tray_menu(app, &status_labels) {
         install_tray_menu(app, menu);
     }
 }
@@ -439,7 +353,6 @@ pub fn update_tray_status_items(
     app: &AppHandle,
     snapshots: &[crate::commands::ProviderUsageSnapshot],
 ) {
-    let catalog = crate::commands::get_provider_catalog();
     let settings = Settings::load();
     let rates_cache = app
         .try_state::<crate::commands::CurrencyRateCache>()
@@ -447,7 +360,7 @@ pub fn update_tray_status_items(
     let status_labels = TrayPresentationPlan::resolve(&settings, snapshots, rates_cache)
         .status_labels(settings.ui_language);
 
-    if let Ok(menu) = build_native_tray_menu(app, &catalog, &status_labels) {
+    if let Ok(menu) = build_native_tray_menu(app, &status_labels) {
         install_tray_menu(app, menu);
     }
 }
@@ -496,7 +409,6 @@ pub fn update_tray_icon_and_tooltip(
         settings.ui_language,
         settings.hide_personal_info,
     );
-    let tooltip = crate::status_poller::with_incident_lines(app, &settings, tooltip);
     let tooltip = fit_tooltip(&tooltip, TRAY_TOOLTIP_MAX_UTF16);
     let _ = tray.set_tooltip(Some(tooltip));
 }
@@ -678,8 +590,6 @@ fn build_native_menu_entry(
 mod tests {
     use super::*;
 
-    use crate::surface::SurfaceMode;
-    use crate::tray_menu::tests::{actionable_ids, flatten, sample_provider_catalog};
     use crate::tray_presentation::tests::{fake_snapshot, fake_snapshot_with};
     use codexbar::settings::Language;
 
@@ -688,14 +598,10 @@ mod tests {
         assert!(!activation_allowed(false, "refresh", true));
         assert!(activation_allowed(true, "refresh", true));
         assert!(activation_allowed(true, "settings", true));
-        assert!(activation_allowed(true, "toggle_provider:codex", true));
-        assert!(activation_allowed(
-            true,
-            "switch_claude_account:a:org",
-            true
-        ));
         assert!(!activation_allowed(true, "status_codex", true));
-        assert!(!activation_allowed(true, "stay_awake_active", true));
+        assert!(!activation_allowed(true, "toggle_provider:codex", true));
+        assert!(!activation_allowed(true, "toggle_float_bar", true));
+        assert!(!activation_allowed(true, "pop_out", true));
         assert!(!activation_allowed(true, "not_a_menu_item", true));
         assert!(!activation_allowed(true, "", true));
         assert!(!activation_allowed(true, "refresh", false));
@@ -708,61 +614,23 @@ mod tests {
             ("claude".to_string(), "Claude 60%".to_string()),
             ("codex".to_string(), "Codex 30%".to_string()),
         ];
-        let spec = build_tray_menu_with(
-            &sample_provider_catalog(),
-            &labels,
-            &crate::tray_menu::tests::both_enabled(),
-            MenuState {
-                float_bar_enabled: true,
-                stay_awake_held: true,
-            },
-            Language::English,
-        );
-
-        let actionable = actionable_ids(&spec);
-        for expected in [
-            "refresh",
-            "pop_out",
-            "toggle_float_bar",
-            "toggle_provider:codex",
-            "toggle_provider:claude",
-            "settings",
-            "check_for_updates",
-            "about",
-            "quit",
-        ] {
-            assert!(
-                actionable.iter().any(|id| id == expected),
-                "{expected} should be actionable in the spec"
-            );
-        }
-        for id in &actionable {
-            assert!(
-                resolve_menu_action(id).is_some(),
-                "spec id {id} does not resolve to a menu action"
-            );
-        }
-
-        let mut inert = Vec::new();
-        for entry in flatten(&spec) {
-            if let Some(id) = entry.id.as_deref()
-                && (id.starts_with("status_") || id == "stay_awake_active")
-            {
-                assert!(resolve_menu_action(id).is_none(), "{id} must not dispatch");
-                inert.push(id.to_string());
-            }
-        }
+        let spec = build_tray_menu(&labels, Language::English);
+        let actions: Vec<_> = spec
+            .iter()
+            .filter(|entry| !entry.disabled)
+            .filter_map(|entry| entry.id.as_deref())
+            .collect();
         assert_eq!(
-            inert,
-            vec!["status_claude", "status_codex", "stay_awake_active"],
-            "the drift guard must see every status row"
+            actions,
+            ["refresh", "settings", "check_for_updates", "about", "quit"]
         );
-    }
-
-    #[test]
-    fn toggle_float_bar_routes_to_toggle_action() {
-        let action = resolve_menu_action("toggle_float_bar").expect("float bar action");
-        assert!(matches!(action, MenuAction::ToggleFloatBar));
+        assert!(actions.iter().all(|id| resolve_menu_action(id).is_some()));
+        assert!(
+            spec.iter()
+                .filter(|entry| entry.disabled)
+                .filter_map(|entry| entry.id.as_deref())
+                .all(|id| resolve_menu_action(id).is_none())
+        );
     }
 
     #[test]
@@ -778,17 +646,6 @@ mod tests {
             MenuAction::OpenSettings(tab) => assert_eq!(tab, "general"),
             _ => panic!("expected OpenSettings for 'settings'"),
         }
-    }
-
-    #[test]
-    fn pop_out_menu_routes_to_open_flyout_action() {
-        // "Pop Out Dashboard" opens the tray-panel flyout window, the only
-        // dashboard layout.
-        let action = resolve_menu_action("pop_out").expect("pop_out action");
-        assert!(matches!(action, MenuAction::OpenFlyout));
-
-        let props = SurfaceMode::TrayPanel.window_properties();
-        assert!(!props.resizable && props.blur_dismiss && props.skip_taskbar);
     }
 
     #[test]

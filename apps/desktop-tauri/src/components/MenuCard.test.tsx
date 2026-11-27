@@ -678,7 +678,7 @@ describe("MenuCard", () => {
 
     expect(await screen.findByText("69%")).toBeInTheDocument();
     expect(container.querySelector(".menu-metric__meta")).not.toBeInTheDocument();
-    expect(container.querySelector(".menu-metric__gauge-pace")).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.menu-metric__gauge-pace[data-unavailable="true"]')).toHaveLength(1);
     expect(container.querySelector(".menu-card__pace")).not.toBeInTheDocument();
     expect(screen.queryByText("On-pace budget")).not.toBeInTheDocument();
     expect(container.querySelector(".menu-metric__forecast")).not.toBeInTheDocument();
@@ -725,7 +725,7 @@ describe("MenuCard", () => {
     expect(screen.queryByText("On-pace budget")).not.toBeInTheDocument();
     expect(screen.queryByText(/in reserve/)).not.toBeInTheDocument();
     expect(container.querySelector(".menu-metric__meta")).not.toBeInTheDocument();
-    expect(container.querySelector(".menu-metric__gauge-pace")).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.menu-metric__gauge-pace[data-unavailable="true"]')).toHaveLength(2);
     expect(container.querySelector(".menu-metric__forecast")).not.toBeInTheDocument();
   });
 
@@ -964,10 +964,11 @@ describe("MenuCard", () => {
     const weekly = await screen.findByRole("progressbar", { name: "Weekly" });
     expect(weekly).toHaveAttribute("aria-description", "12% in reserve · Lasts until reset");
     expect(screen.queryByText("12% in reserve · Lasts until reset")).not.toBeInTheDocument();
-    const stripes = container.querySelectorAll(".menu-metric__gauge-pace");
-    expect(stripes).toHaveLength(1);
-    expect(stripes[0]).toHaveStyle({ left: "clamp(1px, 48%, 100% - 1px)" });
-    expect(stripes[0].getAttribute("data-deficit")).toBe("false");
+    expect(container.querySelectorAll(".menu-metric__gauge-pace")).toHaveLength(2);
+    const stripe = weekly.querySelector(".menu-metric__gauge-pace");
+    expect(stripe).toHaveStyle({ left: "clamp(1px, 48%, 100% - 1px)" });
+    expect(stripe).toHaveAttribute("data-deficit", "false");
+    expect(stripe).toHaveAttribute("data-unavailable", "false");
   });
 
   it("shows the deficit forecast on the pace marker", async () => {
@@ -988,11 +989,11 @@ describe("MenuCard", () => {
       },
     };
 
-    const { container } = renderCard(snapshot, { showAsUsed: true });
+    renderCard(snapshot, { showAsUsed: true });
 
     const weekly = await screen.findByRole("progressbar", { name: "Weekly" });
     expect(weekly).toHaveAttribute("aria-description", "9% in deficit · Runs out in 2h 30m");
-    const stripe = container.querySelector(".menu-metric__gauge-pace");
+    const stripe = weekly.querySelector(".menu-metric__gauge-pace");
     expect(stripe).toHaveStyle({ left: "clamp(1px, 31%, 100% - 1px)" });
     expect(stripe?.getAttribute("data-deficit")).toBe("true");
   });

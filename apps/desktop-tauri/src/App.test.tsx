@@ -50,9 +50,6 @@ vi.mock("./surfaces/TrayPanel", () => ({
 vi.mock("./surfaces/Settings", () => ({
   default: () => <div data-testid="surface-settings" />,
 }));
-vi.mock("./floatbar/FloatBar", () => ({
-  default: () => <div data-testid="surface-float-bar" />,
-}));
 
 vi.mock("./hooks/useSurfaceSnapshot", () => ({
   useSurfaceSnapshot: () => surfaceMocks.snapshot,
@@ -231,16 +228,6 @@ describe("App window-label routing", () => {
     expect(queryByTestId("surface-tray-panel")).toBeNull();
   });
 
-  it("routes the detached floatbar window to FloatBar, not TrayPanel", async () => {
-    webviewWindowMocks.label = "floatbar";
-
-    const { queryByTestId } = render(<App />);
-
-    await waitFor(() => {
-      expect(queryByTestId("surface-float-bar")).not.toBeNull();
-    });
-    expect(queryByTestId("surface-tray-panel")).toBeNull();
-  });
 
   it("does not route the shared main window to TrayPanel while hidden", async () => {
     // main's surface-mode machine only holds Hidden/Settings outside proof

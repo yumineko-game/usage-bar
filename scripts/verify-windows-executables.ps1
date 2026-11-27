@@ -3,12 +3,7 @@ param(
     [string]$DesktopExe,
 
     [Parameter(Mandatory = $true)]
-    [string]$CliExe,
-
-    [Parameter(Mandatory = $true)]
-    [string]$LegacyDesktopExe,
-
-    [switch]$CheckCliStdout
+    [string]$LegacyDesktopExe
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,22 +46,16 @@ function Get-Sha256 {
 }
 
 $desktop = Resolve-RequiredPath -Path $DesktopExe -Label "desktop executable"
-$cli = Resolve-RequiredPath -Path $CliExe -Label "CLI executable"
 $legacyDesktop = Resolve-RequiredPath -Path $LegacyDesktopExe -Label "desktop compatibility executable"
 
 $desktopHash = Get-Sha256 $desktop
-$cliHash = Get-Sha256 $cli
 $legacyDesktopHash = Get-Sha256 $legacyDesktop
 
-if ($desktopHash -eq $cliHash) {
-    throw "codexbar.exe and codexbar-cli.exe must not be byte-identical; the CLI must be the console binary."
-}
 if ($desktopHash -ne $legacyDesktopHash) {
     throw "codexbar.exe and codexbar-desktop.exe should be identical desktop binaries."
 }
 
 $desktopSubsystem = Get-PeSubsystem $desktop
-$cliSubsystem = Get-PeSubsystem $cli
 $legacyDesktopSubsystem = Get-PeSubsystem $legacyDesktop
 
 if ($desktopSubsystem -ne 2) {
@@ -75,33 +64,9 @@ if ($desktopSubsystem -ne 2) {
 if ($legacyDesktopSubsystem -ne 2) {
     throw "codexbar-desktop.exe must be a Windows GUI-subsystem desktop binary; got subsystem $legacyDesktopSubsystem."
 }
-if ($cliSubsystem -ne 3) {
-    throw "codexbar-cli.exe must be a Windows console-subsystem CLI binary; got subsystem $cliSubsystem."
+$dynamicCrt = @(Get-DynamicCrtImports (Get-PeImportedDllNames $desktop))
+if ($dynamicCrt.Count -gt 0) {
+    throw "codexbar.exe links the C runtime dynamically ($($dynamicCrt -join ', ')); release builds must use +crt-static."
 }
 
-# Release builds link the C runtime statically (+crt-static), so both
-# binaries start on a PC without the Visual C++ Redistributable.
-foreach ($binary in @(@{ Path = $desktop; Name = "codexbar.exe" }, @{ Path = $cli; Name = "codexbar-cli.exe" })) {
-    $dynamicCrt = @(Get-DynamicCrtImports (Get-PeImportedDllNames $binary.Path))
-    if ($dynamicCrt.Count -gt 0) {
-        throw "$($binary.Name) links the C runtime dynamically ($($dynamicCrt -join ', ')); release builds must use +crt-static."
-    }
-}
-
-if ($CheckCliStdout) {
-    $stdoutPath = Join-Path ([System.IO.Path]::GetTempPath()) "codexbar-cli-stdout-$PID.txt"
-    try {
-        & $cli --help > $stdoutPath
-        if ($LASTEXITCODE -ne 0) {
-            throw "codexbar-cli.exe --help exited with $LASTEXITCODE"
-        }
-        $stdout = Get-Content -Raw -LiteralPath $stdoutPath
-        if (-not $stdout -or $stdout -notmatch "Usage:" -or $stdout -notmatch "diagnose") {
-            throw "codexbar-cli.exe --help did not write expected CLI help to redirected stdout."
-        }
-    } finally {
-        Remove-Item -LiteralPath $stdoutPath -Force -ErrorAction SilentlyContinue
-    }
-}
-
-Write-Host "Windows executable layout verified: desktop GUI binary + separate console CLI, both with a static C runtime."
+Write-Host "Windows desktop executable and compatibility alias verified."

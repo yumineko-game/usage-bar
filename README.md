@@ -7,7 +7,7 @@ AI コーディングサービスの使用量を Windows のシステムトレ�
 - [apps/desktop-tauri/](apps/desktop-tauri/) — Windows トレイと設定画面
 - [rust/](rust/) — 使用量取得、CLI、更新処理、インストーラー設定
 - [scripts/](scripts/) — ローカル開発と GitHub Releases への発行
-- [docs/](docs/) — 設定、CLI、WSL、実装の資料
+- [docs/](docs/) — 設定、認証、CLI、WSL の運用メモ
 - [vendor/](vendor/) — Windows トレイで使う依存ライブラリの修正版
 
 ## インストールと更新
@@ -32,4 +32,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/release-usagebar.ps1 -PublishUnsigned -NotesFile /path/to/release-notes.md
 ```
 
-設定は通常 `%APPDATA%\CodexBar`、キャッシュは `%LOCALAPPDATA%\CodexBar` に保存されます。詳細は [設定](docs/CONFIGURATION.md)、[CLI](docs/CLI.md)、[WSL](docs/WSL.md) を参照してください。
+設定・認証、CLI、WSL の手順は [運用メモ](docs/USAGE.md) にまとめています。

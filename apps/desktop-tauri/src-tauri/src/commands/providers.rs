@@ -43,13 +43,6 @@ impl RefreshScope {
     fn refresh_account_lanes(self) -> bool {
         matches!(self, Self::AllEnabled)
     }
-
-    /// Upstream polls status pages from its full and per-provider refreshes
-    /// (`UsageStore.swift:842`). The 60-second auto-resume probe is
-    /// Windows-only, so it must not add status rounds of its own.
-    fn polls_status(self) -> bool {
-        matches!(self, Self::AllEnabled)
-    }
 }
 
 /// Account changes supersede the old identity's cache and any in-flight batch.
@@ -202,9 +195,6 @@ async fn do_refresh_providers_with_policy(
             return Ok(ProviderRefreshOutcome::Skipped { reason });
         }
     };
-    if scope.polls_status() {
-        crate::status_poller::spawn_poll(app, &inputs.settings, &refresh_ids, force);
-    }
 
     // Ensure cache only contains currently enabled providers for this generation.
     if scope == RefreshScope::AllEnabled
@@ -262,7 +252,6 @@ async fn do_refresh_providers_with_policy(
     cli_usage_cache::publish(&state, inputs.settings.share_usage_with_cli);
 
     events::emit_refresh_complete(app, enabled_count, error_count);
-    crate::auto_refresh::schedule_refresh_enrichment(&inputs.settings);
 
     Ok(ProviderRefreshOutcome::Published { generation })
 }
@@ -809,15 +798,5 @@ pub fn get_cached_providers(
         .collect()
 }
 
-#[cfg(test)]
-mod refresh_scope_tests {
-    use super::RefreshScope;
-
-    #[test]
-    fn only_full_refreshes_poll_status_pages() {
-        assert!(RefreshScope::AllEnabled.polls_status());
-        assert!(!RefreshScope::AutoResume.polls_status());
-    }
-}
 #[cfg(test)]
 mod predictive_warning_tests;

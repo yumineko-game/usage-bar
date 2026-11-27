@@ -2,10 +2,10 @@ import type { CSSProperties } from "react";
 import type { ProviderUsageSnapshot } from "../types/bridge";
 import { useLocale } from "../hooks/useLocale";
 import { providerAllowsPace } from "../lib/providerPace";
-import { isUsageItemVisible, projectClaudeSections } from "../lib/usageItemVisibility";
 import { localizeWindowLabel } from "../lib/windowLabels";
 import { useMonthlyLimitBlockNow } from "../hooks/useMonthlyLimitBlockNow";
 import { providerBarAccent } from "./providers/providerIcons";
+import { InventoryItemRow } from "./InventoryRows";
 import CardHeader from "./card/CardHeader";
 import CardMetricRow, { type MetricEntry } from "./card/CardMetricRow";
 import { hideEmailsInText } from "../lib/personalInfo";
@@ -95,23 +95,24 @@ function cardMetrics(
     });
   }
   // A window the provider keeps for the tray and float bar only (upstream LithosAI has no card bar).
-  return metrics.filter(({ id, snap }) => {
-    if (snap.hiddenOnCard || !isUsageItemVisible(provider.hiddenUsageItemIds, id)) return false;
+  return metrics.filter(({ snap }) => {
+    if (snap.hiddenOnCard) return false;
     return !snap.isInformational || snap.resetsAt != null || !snap.resetDescription?.trim()
       || quotaOnlyDescription(snap.resetDescription) != null;
   });
 }
 
 export default function MenuCard({
-  provider: reportedProvider,
+  provider,
   display,
   isRefreshing = false,
   accentColor,
 }: MenuCardProps) {
   const { t, language } = useLocale();
-  const provider = projectClaudeSections(reportedProvider.providerId, reportedProvider);
   const { hideEmail, showPace = true } = display;
   const metrics = provider.error ? [] : cardMetrics(provider, t, language);
+  const inventory = provider.error ? [] : provider.inventory?.filter((item) => item.id === "reset-credits") ?? [];
+  const hasDetails = metrics.length > 0 || inventory.length > 0;
   const monthlyLimitBlockNow = useMonthlyLimitBlockNow(
     metrics.map((metric) => metric.snap.monthlyLimitBlock),
   );
@@ -125,7 +126,7 @@ export default function MenuCard({
   const accent = providerBarAccent(provider.providerId, accentColor);
   const classes = [
     "menu-card",
-    metrics.length > 0 ? "menu-card--with-details" : "menu-card--header-only",
+    hasDetails ? "menu-card--with-details" : "menu-card--header-only",
     provider.error && "menu-card--error",
     isRefreshing && "menu-card--refreshing",
   ];
@@ -145,7 +146,7 @@ export default function MenuCard({
         isRefreshing={isRefreshing}
         compact
       />
-      {metrics.length > 0 && (
+      {hasDetails && (
         <>
           <div className="menu-card__divider" />
           <section className="menu-card__metrics">
@@ -159,6 +160,15 @@ export default function MenuCard({
                 display={metricDisplay}
                 resetFormatMode={metric.resetFormatMode}
                 tray
+              />
+            ))}
+            {inventory.map((item) => (
+              <InventoryItemRow
+                key={item.id}
+                item={item}
+                resetTimeRelative={display.resetTimeRelative}
+                lineClassName="menu-metric__inventory"
+                expiryClassName="menu-metric__reset"
               />
             ))}
           </section>

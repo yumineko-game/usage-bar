@@ -9,8 +9,7 @@
 //!     window tray left-click and "Pop Out Dashboard" open (the legacy
 //!     PopOut layout is retired, so `popOut:<target>` payloads are rejected)
 //!   - `settings`           — show settings (General tab)
-//!   - `settings:menuBar`   — show settings on the Menu Bar tab
-//!   - `settings:usageSpend` — show settings on the Usage & Spend tab
+//!   - `settings:about`     — show settings on the Updates tab
 //!   - `settings:hooks`     — show settings on the Hooks tab
 //!   - `settings:about`     — show settings on the About tab
 //!   - `settings:providers:codex` — show settings on the Codex provider pane
@@ -58,7 +57,7 @@ use crate::surface_target::{SurfaceTarget, is_supported_settings_tab};
 pub struct ProofConfig {
     /// The surface to show on startup (serialized as the camelCase id).
     pub target_surface: String,
-    /// Optional settings tab id (e.g. `"menuBar"`, `"usageSpend"`).
+    /// Optional settings tab id (e.g. `"general"`, `"about"`).
     pub settings_tab: Option<String>,
     /// Optional target payload for richer proof routing (currently only the
     /// settings tab id).
@@ -810,10 +809,10 @@ mod tests {
 
     #[test]
     fn parse_settings_with_tab() {
-        with_proof_mode_env(Some("settings:menuBar"), || {
+        with_proof_mode_env(Some("settings:about"), || {
             let cfg = ProofConfig::from_env().unwrap();
             assert_eq!(cfg.target_surface, "settings");
-            assert_eq!(cfg.settings_tab.as_deref(), Some("menuBar"));
+            assert_eq!(cfg.settings_tab.as_deref(), Some("about"));
             assert_eq!(cfg.surface_mode(), SurfaceMode::Settings);
             assert_eq!(
                 cfg.surface_target(),

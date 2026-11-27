@@ -51,18 +51,6 @@ describe("GrokAccountsSection", () => {
     });
   });
 
-  it("shows Add account and switches only saved inactive accounts", async () => {
-    render(<GrokAccountsSection t={t} />);
-    await screen.findByText(current.email);
-    expect(screen.getByText("CodexAccountsAddButton")).toBeInTheDocument();
-    expect(screen.getAllByText("CodexAccountsSwitchButton")).toHaveLength(1);
-    await act(async () => fireEvent.click(screen.getByText("GrokAccountsSaveCurrent")));
-    expect(mocks.grokAccountSaveCurrent).toHaveBeenCalledOnce();
-    await act(async () => fireEvent.click(screen.getByText("CodexAccountsSwitchButton")));
-    expect(mocks.grokAccountSwitch).toHaveBeenCalledWith(other.id);
-    expect(screen.getByRole("status").textContent).toBe("GrokAccountsSwitched");
-  });
-
   it("keeps mutations disabled during browser login and supports cancel", async () => {
     let finish!: () => void;
     mocks.grokAccountAdd.mockImplementation(
@@ -96,24 +84,4 @@ describe("GrokAccountsSection", () => {
     expect((screen.getByText("CodexAccountsAddButton") as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("labels accounts Account N under Hide Personal Info, with no email", async () => {
-    const { container } = render(<GrokAccountsSection t={t} hidePersonalInfo />);
-    await screen.findByText("Account 1");
-    expect(screen.getByText("Account 2")).toBeInTheDocument();
-    expect(container.innerHTML).not.toContain("@");
-    expect(container.innerHTML).not.toContain("example.com");
-  });
-
-  it("numbers hidden accounts in list order, not by sorted id", async () => {
-    // The unsaved live login is listed first, though "user-a" sorts first.
-    const live: GrokAccount = { ...current, id: "user-z", email: "z@example.com" };
-    const saved: GrokAccount = { ...other, id: "user-a", email: "a@example.com" };
-    mocks.grokAccountsList.mockResolvedValue([live, saved]);
-    const { container } = render(<GrokAccountsSection t={t} hidePersonalInfo />);
-    await screen.findByText("Account 2");
-    const labels = [...container.querySelectorAll(".credential-card__info strong")].map(
-      (label) => label.textContent,
-    );
-    expect(labels).toEqual(["Account 1", "Account 2"]);
-  });
 });

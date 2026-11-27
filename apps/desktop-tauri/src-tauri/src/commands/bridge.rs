@@ -11,7 +11,7 @@ mod status;
 mod throughput;
 #[cfg(test)]
 mod throughput_tests;
-pub(crate) use openai_live::{ModelRateLimitSnapshot, OrgRateLimitsSnapshot};
+pub(crate) use openai_live::ModelRateLimitSnapshot;
 pub(crate) use openai_usage::OpenAiApiUsageSnapshot;
 pub use quota_block::MonthlyLimitBlockSnapshot;
 pub use settings_snapshot::*;

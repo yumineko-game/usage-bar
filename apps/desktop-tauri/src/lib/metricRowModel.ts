@@ -366,6 +366,10 @@ export function metricRowPresentation(input: MetricRowInput, t: Translate): Metr
   const replacesPercent =
     input.showResetWhenExhausted && snap.isExhausted && resetTarget > input.now && input.resetText !== null;
   const visible = visiblePace(input);
+  const trayPace = input.tray && input.paceEnabled ? snap.pace : null;
+  const usableTrayPace = trayPace != null &&
+    Number.isFinite(trayPace.expectedUsedPercent) &&
+    Number.isFinite(trayPace.actualUsedPercent) ? trayPace : null;
   const markers = input.tray ? [] : barMarkers(input);
   // The daily target shares the pace setting and the non-compact meta line.
   const dailyTarget =
@@ -373,16 +377,22 @@ export function metricRowPresentation(input: MetricRowInput, t: Translate): Metr
       ? dailyTargetText(snap.dailyTarget, t)
       : null;
   const metaParts = [
-    visible && (input.tray || !input.compact) ? paceMetaText(visible.pace, visible.kind, t) : null,
+    input.tray
+      ? usableTrayPace
+        ? paceMetaText(usableTrayPace, paceKind(input.lane, snap.windowMinutes, usableTrayPace.resetWindow === true) ?? "weekly", t)
+        : t("PaceForecastUnavailable")
+      : visible && !input.compact ? paceMetaText(visible.pace, visible.kind, t) : null,
     dailyTarget,
   ].filter((part): part is string => part !== null);
   const valuePercent = Math.round(shown);
   const numericPercent = percentLabel(shown);
   const describedPercent = `${numericPercent} ${t(showAsUsed ? "PanelUsedSuffix" : "PanelLeftSuffix")}`;
-  const pacePercent =
-    visible && PACE_DIRECTION[visible.pace.stage] !== "onPace"
-      ? clampPercent(showAsUsed ? visible.pace.expectedUsedPercent : 100 - visible.pace.expectedUsedPercent)
-      : null;
+  const pace = input.tray
+    ? usableTrayPace
+    : (visible && PACE_DIRECTION[visible.pace.stage] !== "onPace" ? visible.pace : null);
+  const pacePercent = pace
+    ? clampPercent(showAsUsed ? pace.expectedUsedPercent : 100 - pace.expectedUsedPercent)
+    : null;
   return {
     percentText: replacesPercent ? null : input.tray ? numericPercent : describedPercent,
     resetText: input.compact && !input.tray && !replacesPercent ? null : input.resetText,
@@ -392,7 +402,9 @@ export function metricRowPresentation(input: MetricRowInput, t: Translate): Metr
       valuePercent,
       valueText: input.tray ? describedPercent : barValueText(valuePercent, markers, t),
       pacePercent,
-      paceDeficit: visible ? visible.pace.actualUsedPercent > visible.pace.expectedUsedPercent : false,
+      paceDeficit: input.tray
+        ? pace?.willLastToReset === false
+        : visible != null && visible.pace.actualUsedPercent > visible.pace.expectedUsedPercent,
       markers,
       workdayTickStyle: input.workdayTickStyle === "high_contrast" ? "high_contrast" : "subtle",
     },

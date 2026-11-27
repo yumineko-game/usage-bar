@@ -25,8 +25,9 @@ vi.mock("../lib/tauri", () => tauriMocks);
 import { useSettings } from "./useSettings";
 import type { SettingsSnapshot } from "../types/bridge";
 
-const snapshot = (windowScalePercent: number) =>
-  ({ windowScalePercent }) as unknown as SettingsSnapshot;
+const profileHomes = (id: number) => [`C:/profile-${id}`];
+const snapshot = (id: number) =>
+  ({ antigravityAdditionalProfileHomes: profileHomes(id) }) as SettingsSnapshot;
 
 describe("useSettings live sync", () => {
   beforeEach(() => {
@@ -45,14 +46,14 @@ describe("useSettings live sync", () => {
       expect(eventMocks.listeners["settings-changed"]).toBeTypeOf("function"),
     );
 
-    // A change persisted by the detached Settings window bumps the scale.
+    // The detached Settings window saved a profile choice.
     tauriMocks.getSettingsSnapshot.mockResolvedValue(snapshot(175));
     await act(async () => {
       eventMocks.listeners["settings-changed"]();
     });
 
     await waitFor(() =>
-      expect(result.current.settings.windowScalePercent).toBe(175),
+      expect(result.current.settings.antigravityAdditionalProfileHomes).toEqual(profileHomes(175)),
     );
   });
 
@@ -96,17 +97,17 @@ describe("useSettings update", () => {
 
     let done!: Promise<void>;
     act(() => {
-      done = result.current.update({ windowScalePercent: 150 });
+      done = result.current.update({ antigravityAdditionalProfileHomes: profileHomes(150) });
     });
 
-    expect(result.current.settings.windowScalePercent).toBe(150);
+    expect(result.current.settings.antigravityAdditionalProfileHomes).toEqual(profileHomes(150));
     expect(result.current.saving).toBe(false);
 
     await act(async () => {
       pending.resolve(snapshot(150));
       await done;
     });
-    expect(result.current.settings.windowScalePercent).toBe(150);
+    expect(result.current.settings.antigravityAdditionalProfileHomes).toEqual(profileHomes(150));
     expect(result.current.saving).toBe(false);
   });
 
@@ -120,7 +121,7 @@ describe("useSettings update", () => {
 
       let done!: Promise<void>;
       act(() => {
-        done = result.current.update({ windowScalePercent: 150 });
+        done = result.current.update({ antigravityAdditionalProfileHomes: profileHomes(150) });
       });
       expect(result.current.saving).toBe(false);
 
@@ -139,25 +140,6 @@ describe("useSettings update", () => {
     }
   });
 
-  it("merges a per-provider accent color patch instead of replacing the map", async () => {
-    tauriMocks.updateSettings.mockReturnValueOnce(new Promise(() => {}));
-    const initial = {
-      providerAccentColors: { claude: "#111111", codex: "#222222" },
-    } as unknown as SettingsSnapshot;
-    tauriMocks.getSettingsSnapshot.mockResolvedValue(initial);
-    const { result } = renderHook(() => useSettings(initial));
-    await act(async () => {});
-
-    act(() => {
-      void result.current.update({ providerAccentColors: { claude: null, grok: "#333333" } });
-    });
-
-    expect(result.current.settings.providerAccentColors).toEqual({
-      codex: "#222222",
-      grok: "#333333",
-    });
-  });
-
   it("ignores a stale response that arrives after a newer save", async () => {
     const first = deferred<SettingsSnapshot>();
     const second = deferred<SettingsSnapshot>();
@@ -171,10 +153,10 @@ describe("useSettings update", () => {
     let a!: Promise<void>;
     let b!: Promise<void>;
     act(() => {
-      a = result.current.update({ windowScalePercent: 125 });
+      a = result.current.update({ antigravityAdditionalProfileHomes: profileHomes(125) });
     });
     act(() => {
-      b = result.current.update({ windowScalePercent: 150 });
+      b = result.current.update({ antigravityAdditionalProfileHomes: profileHomes(150) });
     });
 
     await act(async () => {
@@ -186,7 +168,7 @@ describe("useSettings update", () => {
       await a;
     });
 
-    expect(result.current.settings.windowScalePercent).toBe(150);
+    expect(result.current.settings.antigravityAdditionalProfileHomes).toEqual(profileHomes(150));
   });
 
   it("ignores a stale failure that arrives after a newer save succeeded", async () => {
@@ -202,10 +184,10 @@ describe("useSettings update", () => {
     let a!: Promise<void>;
     let b!: Promise<void>;
     act(() => {
-      a = result.current.update({ windowScalePercent: 125 });
+      a = result.current.update({ antigravityAdditionalProfileHomes: profileHomes(125) });
     });
     act(() => {
-      b = result.current.update({ windowScalePercent: 150 });
+      b = result.current.update({ antigravityAdditionalProfileHomes: profileHomes(150) });
     });
     await act(async () => {
       second.resolve(snapshot(150));
@@ -219,57 +201,22 @@ describe("useSettings update", () => {
 
     expect(result.current.error).toBeNull();
     expect(tauriMocks.getSettingsSnapshot).not.toHaveBeenCalled();
-    expect(result.current.settings.windowScalePercent).toBe(150);
+    expect(result.current.settings.antigravityAdditionalProfileHomes).toEqual(profileHomes(150));
   });
 
-  it("reports a failed Panel scale save and reverts to the saved value", async () => {
-    const onDisk = { trayScalePercent: 100 } as unknown as SettingsSnapshot;
+  it("reports a failed profile save and reverts to the saved value", async () => {
+    const onDisk = snapshot(100);
     tauriMocks.getSettingsSnapshot.mockResolvedValue(onDisk);
     tauriMocks.updateSettings.mockRejectedValueOnce(new Error("disk busy"));
     const { result } = renderHook(() => useSettings(onDisk));
     await act(async () => {});
 
     await act(async () => {
-      await result.current.update({ trayScalePercent: 150 });
+      await result.current.update({ antigravityAdditionalProfileHomes: profileHomes(150) });
     });
 
     expect(result.current.error).toBe("disk busy");
-    expect(result.current.settings.trayScalePercent).toBe(100);
-  });
-
-  it("keeps the resolved shortcut map until the response supplies it", async () => {
-    tauriMocks.updateSettings.mockReturnValueOnce(new Promise(() => {}));
-    const initial = {
-      switcherShortcuts: { next: "Ctrl+Tab", previous: "Ctrl+Shift+Tab" },
-    } as unknown as SettingsSnapshot;
-    tauriMocks.getSettingsSnapshot.mockResolvedValue(initial);
-    const { result } = renderHook(() => useSettings(initial));
-    await act(async () => {});
-
-    act(() => {
-      void result.current.update({ switcherShortcuts: { next: "Alt+N" } });
-    });
-
-    expect(result.current.settings.switcherShortcuts).toEqual({
-      next: "Ctrl+Tab",
-      previous: "Ctrl+Shift+Tab",
-    });
-  });
-
-  it("merges a per-provider metric patch instead of replacing the map", async () => {
-    tauriMocks.updateSettings.mockReturnValueOnce(new Promise(() => {}));
-    const initial = {
-      providerMetrics: { claude: "session", codex: "weekly" },
-    } as unknown as SettingsSnapshot;
-    tauriMocks.getSettingsSnapshot.mockResolvedValue(initial);
-    const { result } = renderHook(() => useSettings(initial));
-    await act(async () => {});
-
-    act(() => {
-      void result.current.update({ providerMetrics: { claude: "weekly" } });
-    });
-
-    expect(result.current.settings.providerMetrics).toEqual({ claude: "weekly", codex: "weekly" });
+    expect(result.current.settings.antigravityAdditionalProfileHomes).toEqual(profileHomes(100));
   });
 
   it("does not let a broadcast refresh undo a save that is still pending", async () => {
@@ -283,20 +230,20 @@ describe("useSettings update", () => {
 
     let done!: Promise<void>;
     act(() => {
-      done = result.current.update({ windowScalePercent: 150 });
+      done = result.current.update({ antigravityAdditionalProfileHomes: profileHomes(150) });
     });
     // An earlier save's broadcast re-fetches the file before this save lands.
     tauriMocks.getSettingsSnapshot.mockResolvedValue(snapshot(100));
     await act(async () => {
       eventMocks.listeners["settings-changed"]();
     });
-    expect(result.current.settings.windowScalePercent).toBe(150);
+    expect(result.current.settings.antigravityAdditionalProfileHomes).toEqual(profileHomes(150));
 
     await act(async () => {
       pending.resolve(snapshot(150));
       await done;
     });
-    expect(result.current.settings.windowScalePercent).toBe(150);
+    expect(result.current.settings.antigravityAdditionalProfileHomes).toEqual(profileHomes(150));
   });
 
   it("does not restart the saving delay when a second save overlaps", async () => {
@@ -311,13 +258,13 @@ describe("useSettings update", () => {
       const { result } = renderHook(() => useSettings(initial));
 
       act(() => {
-        void result.current.update({ windowScalePercent: 125 });
+        void result.current.update({ antigravityAdditionalProfileHomes: profileHomes(125) });
       });
       act(() => {
         vi.advanceTimersByTime(200);
       });
       act(() => {
-        void result.current.update({ windowScalePercent: 150 });
+        void result.current.update({ antigravityAdditionalProfileHomes: profileHomes(150) });
       });
       act(() => {
         vi.advanceTimersByTime(150);

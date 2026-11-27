@@ -202,6 +202,22 @@ describe("metricRowPresentation percent and reset", () => {
 });
 
 describe("metricRowPresentation pace", () => {
+  it("keeps a tray pace marker near the start of an on-track window", () => {
+    const snap = rateWindow({
+      usedPercent: 0,
+      pace: pace({ stage: "on_track", deltaPercent: 0, expectedUsedPercent: 0, actualUsedPercent: 0 }),
+    });
+    const row = metricRowPresentation(input({ tray: true, lane: "tertiary", snap }), en);
+    expect(row.bar.pacePercent).toBe(100);
+    expect(row.bar.paceDeficit).toBe(false);
+  });
+
+  it("describes missing tray pace without inventing a forecast", () => {
+    const row = metricRowPresentation(input({ tray: true }), en);
+    expect(row.bar.pacePercent).toBeNull();
+    expect(row.metaText).toBe("Usage forecast unavailable");
+  });
+
   it("shows reserve and the lasts-until-reset note on a weekly window", () => {
     const row = metricRowPresentation(input({ lane: "secondary", snap: weekly() }), en);
     expect(row.metaText).toBe("23% in reserve · Lasts until reset");

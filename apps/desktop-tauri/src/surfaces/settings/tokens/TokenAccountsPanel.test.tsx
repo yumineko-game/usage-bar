@@ -71,28 +71,6 @@ beforeEach(() => {
 });
 
 describe("TokenAccountsPanel", () => {
-  it("lists accounts in order with edit and reorder controls per row", async () => {
-    render(<TokenAccountsPanel providerId="claude" />);
-    await screen.findByText("Work", { selector: "strong" });
-
-    const work = within(row("Work"));
-    expect(work.getByRole("button", { name: "TokenAccountMoveUp" }).hasAttribute("disabled")).toBe(
-      true,
-    );
-    expect(
-      work.getByRole("button", { name: "TokenAccountMoveDown" }).hasAttribute("disabled"),
-    ).toBe(false);
-
-    const personal = within(row("Personal"));
-    expect(
-      personal.getByRole("button", { name: "TokenAccountMoveUp" }).hasAttribute("disabled"),
-    ).toBe(false);
-    expect(
-      personal.getByRole("button", { name: "TokenAccountMoveDown" }).hasAttribute("disabled"),
-    ).toBe(true);
-    expect(personal.getByRole("button", { name: "TokenAccountEdit" })).toBeTruthy();
-  });
-
   it("opens the editor prefilled with the label and an empty masked credential", async () => {
     const { container } = render(<TokenAccountsPanel providerId="claude" />);
     await screen.findByText("Personal", { selector: "strong" });
@@ -210,40 +188,4 @@ describe("TokenAccountsPanel", () => {
     expect(editor(container)).not.toBeNull();
   });
 
-  it("moves an account one position and keeps the active account", async () => {
-    tauri.moveTokenAccount.mockResolvedValue(
-      snapshot([PERSONAL, { ...WORK, isActive: true }]),
-    );
-    render(<TokenAccountsPanel providerId="claude" />);
-    await screen.findByText("Personal", { selector: "strong" });
-
-    fireEvent.click(within(row("Personal")).getByRole("button", { name: "TokenAccountMoveUp" }));
-
-    await waitFor(() =>
-      expect(tauri.moveTokenAccount).toHaveBeenCalledWith("claude", "fixture-personal", 0),
-    );
-    const items = Array.from(document.querySelectorAll("li.token-accounts-card strong")).map(
-      (node) => node.textContent,
-    );
-    expect(items).toEqual(["Personal", "Work"]);
-    expect(within(row("Work")).getByText("TokenAccountActive")).toBeTruthy();
-    expect(within(row("Personal")).queryByText("TokenAccountActive")).toBeNull();
-    expect(
-      within(row("Personal"))
-        .getByRole("button", { name: "TokenAccountMoveUp" })
-        .hasAttribute("disabled"),
-    ).toBe(true);
-  });
-
-  it("moves an account down by sending its next index", async () => {
-    tauri.moveTokenAccount.mockResolvedValue(snapshot([PERSONAL, WORK]));
-    render(<TokenAccountsPanel providerId="claude" />);
-    await screen.findByText("Work", { selector: "strong" });
-
-    fireEvent.click(within(row("Work")).getByRole("button", { name: "TokenAccountMoveDown" }));
-
-    await waitFor(() =>
-      expect(tauri.moveTokenAccount).toHaveBeenCalledWith("claude", "fixture-work", 1),
-    );
-  });
 });

@@ -30,7 +30,6 @@ const { stub } = vi.hoisted(() => ({
   stub: (name: string) => () => <div data-testid={name} />,
 }));
 vi.mock("./sections/charts/ChartsSection", () => ({ ChartsSection: stub("charts") }));
-vi.mock("./sections/UsageDetailsSection", () => ({ UsageDetailsSection: () => null }));
 vi.mock("./sections/UsageSourceSection", () => ({ UsageSourceSection: stub("usage-source") }));
 vi.mock("./sections/CookieSourceSection", () => ({ CookieSourceSection: () => null }));
 vi.mock("./sections/RegionSection", () => ({ RegionSection: () => null }));
@@ -146,8 +145,6 @@ async function renderPane(
       settings={settings}
       catalog={catalog}
       resetTimeRelative
-      providerMetrics={settings.providerMetrics}
-      copilotSeatCreditEntitlement={settings.copilotSeatCreditEntitlement}
       providerAccentColors={settings.providerAccentColors}
       wayfinderGatewayUrl="http://127.0.0.1:8088"
       hidePersonalInfo={false}
@@ -169,7 +166,7 @@ describe("ProviderDetailPane", () => {
     tauri.refreshProviders.mockResolvedValue(undefined);
   });
 
-  it("orders header, usage, error, connection, fields, accounts and the trailing groups", async () => {
+  it("keeps usage, fetch errors and connection controls in order", async () => {
     tauri.getProviderDetail.mockResolvedValue(
       detail("codex", { lastError: "boom", errorState: "unknown" }),
     );
@@ -178,13 +175,9 @@ describe("ProviderDetailPane", () => {
       ".provider-detail-header-group",
       ".provider-usage-group",
       ".provider-detail-error-group",
-      ".provider-metric-group",
       ".provider-connection-group",
       ".provider-fields-group",
       ".provider-accounts-group",
-      ".provider-accent-color-group",
-      ".provider-quota-warnings",
-      ".provider-options-group",
     ].map((selector) => container.querySelector(selector));
     expect(order.every(Boolean)).toBe(true);
     for (let i = 1; i < order.length; i += 1) {
@@ -193,11 +186,15 @@ describe("ProviderDetailPane", () => {
       ).toBeTruthy();
     }
     const usage = container.querySelector(".provider-usage-group")!;
-    expect(within(usage as HTMLElement).getByTestId("charts")).toBeTruthy();
-    expect(within(usage as HTMLElement).getByText("ActionUsageDashboard")).toBeTruthy();
+    expect(within(usage as HTMLElement).queryByTestId("charts")).toBeNull();
+    expect(screen.queryByText("ActionUsageDashboard")).toBeNull();
     expect(within(usage as HTMLElement).queryByText("ActionRefresh")).toBeNull();
     const accounts = container.querySelector(".provider-accounts-group")!;
     expect(within(accounts as HTMLElement).getByTestId("codex-accounts")).toBeTruthy();
+    const signIn = screen.getByRole("button", { name: "CodexAccountsSignInButton" });
+    await act(async () => fireEvent.click(signIn));
+    expect(tauri.triggerProviderLogin).toHaveBeenCalledWith("codex");
+    expect(tauri.refreshProviders).toHaveBeenCalledTimes(1);
   });
 
   it("leaves out the error group when the last fetch recorded no error", async () => {
@@ -230,32 +227,6 @@ describe("ProviderDetailPane", () => {
     await renderPane("codex");
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "ActionRefresh" })));
     expect(tauri.refreshProviders).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows the claude-swap path field under its Options toggle only while claude-swap is on", async () => {
-    tauri.getProviderDetail.mockResolvedValue(detail("claude"));
-    const { unmount } = await renderPane("claude");
-    expect(screen.queryByRole("textbox", { name: "ClaudeSwapExecutablePath" })).toBeNull();
-    expect(screen.getByTestId("claude-accounts")).toHaveAttribute("data-swap", "false");
-    unmount();
-
-    const on = {
-      ...baseSettings,
-      claudeSwapEnabled: true,
-      claudeSwapExecutablePath: "C:/tools/cswap.exe",
-    } as SettingsSnapshot;
-    const view = await renderPane("claude", on);
-    const fields = view.container.querySelector(".provider-fields-group") as HTMLElement;
-    expect(within(fields).queryByRole("textbox", { name: "ClaudeSwapExecutablePath" })).toBeNull();
-    const options = view.container.querySelector(".provider-options-group") as HTMLElement;
-    const input = within(options).getByRole("textbox", { name: "ClaudeSwapExecutablePath" });
-    expect(input).toHaveValue("C:/tools/cswap.exe");
-    const toggleRow = within(options)
-      .getByRole("checkbox", { name: "ClaudeSwapEnable" })
-      .closest(".settings-field")!;
-    expect(toggleRow.nextElementSibling).toBe(input.closest(".settings-field"));
-    expect(screen.getByTestId("claude-accounts")).toHaveAttribute("data-swap", "true");
-    expect(screen.getByTestId("claude-accounts")).toHaveAttribute("data-path", "C:/tools/cswap.exe");
   });
 
   it("reloads the credential storage summary after a stored token changes", async () => {
@@ -303,8 +274,6 @@ describe("ProviderDetailPane", () => {
         settings={baseSettings}
         catalog={catalog}
         resetTimeRelative
-        providerMetrics={baseSettings.providerMetrics}
-        copilotSeatCreditEntitlement={baseSettings.copilotSeatCreditEntitlement}
         providerAccentColors={baseSettings.providerAccentColors}
         wayfinderGatewayUrl="http://127.0.0.1:8088"
         hidePersonalInfo={false}
@@ -320,12 +289,4 @@ describe("ProviderDetailPane", () => {
     expect(screen.queryByText("Codex")).toBeNull();
   });
 
-  it("locks Avoid keychain prompts while Credential Manager access is disabled", async () => {
-    tauri.getProviderDetail.mockResolvedValue(detail("claude"));
-    const settings = { ...baseSettings, disableKeychainAccess: true } as SettingsSnapshot;
-    const { container } = await renderPane("claude", settings);
-    const options = container.querySelector(".provider-options-group") as HTMLElement;
-    const row = within(options).getByText("ProviderClaudeAvoidKeychainPrompts").closest(".settings-field") as HTMLElement;
-    expect(within(row).getByRole("checkbox")).toBeDisabled();
-  });
 });

@@ -3,7 +3,6 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   checkForUpdates,
-  downloadUpdate,
   getBootstrapState,
   getSettingsSnapshot,
 } from "./lib/tauri";
@@ -11,15 +10,11 @@ import { useSurfaceSnapshot } from "./hooks/useSurfaceSnapshot";
 import { useTheme } from "./hooks/useTheme";
 import { useLocale } from "./hooks/useLocale";
 import TrayPanel from "./surfaces/TrayPanel";
-import { FLOATBAR_WINDOW_LABEL } from "./floatbar/api";
 import { LocaleProvider } from "./i18n/LocaleProvider";
 import type { BootstrapState, ThemePreference } from "./types/bridge";
 import type { SurfaceSnapshot } from "./hooks/useSurfaceSnapshot";
-import { useDeepSeekPricingStatus } from "./hooks/useDeepSeekPricingStatus";
-import { CurrencyProvider } from "./hooks/CurrencyProvider";
 
 const Settings = lazy(() => import("./surfaces/Settings"));
-const FloatBar = lazy(() => import("./floatbar/FloatBar"));
 
 function SurfaceFallback() {
   return null;
@@ -28,11 +23,6 @@ function SurfaceFallback() {
 /** True when running inside the detached Settings window. */
 function isSettingsWindow(): boolean {
   return getCurrentWebviewWindow().label === "settings";
-}
-
-/** True when running inside the detached FloatBar window. */
-function isFloatBarWindow(): boolean {
-  return getCurrentWebviewWindow().label === FLOATBAR_WINDOW_LABEL;
 }
 
 /** True when running inside the detached flyout ("Pop Out Dashboard") window. */
@@ -49,9 +39,7 @@ function initialSettingsTab(): string {
 export default function App() {
   return (
     <LocaleProvider>
-      <CurrencyProvider>
-        <AppInner />
-      </CurrencyProvider>
+      <AppInner />
     </LocaleProvider>
   );
 }
@@ -65,10 +53,7 @@ function AppInner() {
 
   // The native windows are pinned dark, so the tray and Settings resolve
   // `auto` from Windows rather than the WebView2 media query.
-  useTheme(themePreference, {
-    followSystem: !isFloatBarWindow(),
-  });
-  useDeepSeekPricingStatus();
+  useTheme(themePreference, { followSystem: true });
 
   const reloadBootstrapState = useCallback(
     () => getBootstrapState(),
@@ -97,19 +82,8 @@ function AppInner() {
     // Fire-and-forget update checks after the first paint so startup/tray open
     // is not competing with network work.
     const updateTimer = window.setTimeout(() => {
-      Promise.all([checkForUpdates(), getSettingsSnapshot()])
-        .then(([update, settings]) => {
-          if (settings.autoDownloadUpdates && update.canDownload) {
-            void downloadUpdate().catch(() => {});
-          }
-        })
-        .catch(() => {});
+      void checkForUpdates().catch(() => {});
     }, 2_000);
-
-    // Global shortcuts (the persisted one and ad-hoc capture registrations)
-    // are handled natively: shortcut_bridge::plugin's handler toggles the
-    // tray-panel flyout for every registered shortcut, so no frontend
-    // listener opens a second window here.
 
     const unlistenSettingsChangePromise = isSettingsWindow()
       ? listen<string>("settings-change-tab", () => {
@@ -180,15 +154,6 @@ function AppInner() {
   // Detached settings window — render Settings directly, skip SurfaceRouter.
   if (isSettingsWindow()) {
     return <DetachedSettingsApp state={state} />;
-  }
-
-  // Detached floating-bar window — render the FloatBar surface directly.
-  if (isFloatBarWindow()) {
-    return (
-      <Suspense fallback={<SurfaceFallback />}>
-        <FloatBar state={state} />
-      </Suspense>
-    );
   }
 
   // Detached flyout ("Pop Out Dashboard") window — render TrayPanel directly.

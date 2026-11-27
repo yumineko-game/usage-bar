@@ -8,12 +8,6 @@ export type VisibleSurfaceMode = Exclude<SurfaceMode, "hidden">;
 export type SettingsTabId =
   | "general"
   | "providers"
-  | "notifications"
-  | "menuBar"
-  | "menu"
-  | "usageSpend"
-  | "advanced"
-  | "hooks"
   | "about";
 
 // ── Narrowed string-literal unions (persisted settings enums) ─────────
@@ -415,139 +409,16 @@ export interface CurrencyRatesSnapshot {
   preferredCode: string;
 }
 
-/** Partial settings object — only include fields you want to change. */
+/** Editable desktop preferences. */
 export interface SettingsUpdate {
-  preferredCurrencyCode?: string;
   enabledProviders?: string[];
-  refreshIntervalSecs?: number;
-  adaptiveRefresh?: boolean;
-  refreshAllProvidersOnMenuOpen?: boolean;
-  statusChecksEnabled?: boolean;
-  lowPowerMode?: boolean;
-  lowPowerModePreference?: "off" | "on" | "automatic";
   startAtLogin?: boolean;
   startMinimized?: boolean;
-  showNotifications?: boolean;
-  soundEnabled?: boolean;
-  notificationSoundTheme?: NotificationSoundTheme;
-  notificationSoundPaths?: NotificationSoundPaths;
-  highUsageThreshold?: number;
-  criticalUsageThreshold?: number;
-  /** Replaces each listed provider's whole value; `{}` resets it to Global. */
-  providerQuotaWarnings?: Record<string, ProviderQuotaWarnings>;
-  predictivePaceWarningEnabled?: boolean;
-  predictivePaceWarningLeadHours?: number;
-  limitResetNotificationsEnabled?: boolean;
-  credentialExpiryNotificationsEnabled?: boolean;
-  sessionQuotaNotificationsEnabled?: boolean;
-  showPace?: boolean;
-  trayIconMode?: TrayIconMode;
-  stackedTrayTopProvider?: string;
-  stackedTrayBottomProvider?: string;
-  switcherShowsIcons?: boolean;
-  menuBarShowsHighestUsage?: boolean;
-  menuBarShowsPercent?: boolean;
-  menuBarIconStyle?: MenuBarIconStyle;
-  mergedOverviewSelectedProviders?: string[];
-  mergedOverviewAllAccounts?: boolean;
-  quotaWarningMarkersVisible?: boolean;
-  highlightMenuCardsOnHover?: boolean;
-  workdayTickStyle?: WorkdayTickStyle;
-  menuBarColorPace?: boolean;
-  menuBarColorByProvider?: boolean;
-  menuBarPaceReservePositive?: boolean;
-  providersSortedAlphabetically?: boolean;
-  providersEnabledOnly?: boolean;
-  showAsUsed?: boolean;
-  showAllTokenAccountsInMenu?: boolean;
-  enableAnimations?: boolean;
-  resetTimeRelative?: boolean;
-  showResetWhenExhausted?: boolean;
-  menuBarDisplayMode?: MenuBarDisplayMode;
-  overviewLayout?: OverviewLayout;
-  hidePersonalInfo?: boolean;
-  updateChannel?: UpdateChannel;
-  autoDownloadUpdates?: boolean;
-  installUpdatesOnQuit?: boolean;
-  globalShortcut?: string;
-  /** Overrides only; replaces the stored map. `{}` restores the defaults. */
-  switcherShortcuts?: Record<string, string>;
-  codexCustomSessionsDirs?: string[];
-  antigravityAdditionalProfileHomes?: string[];
-  agentSessionsEnabled?: boolean;
-  agentSessionsLocalOnly?: boolean;
-  stayAwakeEnabled?: boolean;
-  agentSessionSshHosts?: string[];
-  hooksEnabled?: boolean;
-  httpProxyEnabled?: boolean;
-  httpProxyUrl?: string;
-  httpProxyUsername?: string;
-  httpProxyPassword?: string;
-  uiLanguage?: Language;
-  /** `true` picks "System"; picking a `uiLanguage` turns it off. */
-  uiLanguageFollowsSystem?: boolean;
-  theme?: ThemePreference;
-  windowScalePercent?: number;
-  trayScalePercent?: number;
-  trayPanelStyle?: TrayPanelStyle;
-  trayPanelWidth?: number;
-  trayPanelAlwaysOnTop?: boolean;
-  trayPanelMovable?: boolean;
-  powertoysStatusPipeEnabled?: boolean;
-  shareUsageWithCli?: boolean;
-  claudeAvoidKeychainPrompts?: boolean;
-  claudeAllowReadingClaudeCodeCredentials?: boolean;
-  claudeSwapEnabled?: boolean;
-  claudeSwapExecutablePath?: string;
-  claudeSwapSource?: ClaudeSwapAccountSource;
-  claudeDesktopCookiesEnabled?: boolean;
-  codexSparkUsageVisible?: boolean;
-  codexOpenaiWebExtras?: boolean;
-  codexHistoricalTracking?: boolean;
-  codexExternalOauthSourcesAllowed?: boolean;
-  codexLocalSessionCostLedgerEnabled?: boolean;
-  codexOpencodeLocalHistoryEnabled?: boolean;
-  codexOpenaiWebBatterySaverEnabled?: boolean;
-  /** Fetch the last hour of OpenAI API Tokens/min on each refresh. */
-  openAiLiveUsageEnabled?: boolean;
-  /** Replaces the stored OpenAI API limit list; an empty list clears it. */
-  openAiModelRateLimits?: ModelRateLimitSnapshot[];
-  disableKeychainAccess?: boolean;
-  /** Map of provider CLI name → metric preference label. */
-  providerMetrics?: Record<string, MetricPreference>;
-  /**
-   * Map of provider CLI name → full hidden usage-item ID list. Replaces the
-   * whole list for that provider; empty clears all hidden rows.
-   */
-  providerHiddenUsageItemIds?: Record<string, string[]>;
-  floatBarEnabled?: boolean;
-  floatBarOpacity?: number;
-  floatBarScale?: number;
-  floatBarOrientation?: FloatBarOrientation;
-  floatBarStyle?: FloatBarStyle;
-  floatBarClickThrough?: boolean;
-  floatBarProviderIds?: string[];
-  floatBarDarkText?: boolean;
-  floatBarShowResetInline?: boolean;
-  floatBarShowCost?: boolean;
-  floatBarShowWeekly?: boolean;
   promoteTrayIcon?: boolean;
-  claudeDailyRoutinesUsageVisible?: boolean;
-  alibabaTokenPlanRegion?: string;
-  /** Optional user-entered Copilot seat AI-credit allowance; null clears it. */
-  copilotSeatCreditEntitlement?: number | null;
-  /** 2..=7 work days; null selects Automatic. */
-  weeklyProgressWorkDays?: number | null;
-  costSummaryDisplayStyle?: CostSummaryDisplayStyle;
-  openCodexUsageLogsEnabled?: boolean;
-  hideNativeCodexCostWhenOpenCodexPresent?: boolean;
-  /** `rolling:N` (1..=365), `month-to-date`, or `all`; the backend rejects other values. */
-  costReportingPeriod?: string;
-  costUsageEnabled?: boolean;
-  /** Same format as `costReportingPeriod`. */
-  spendDashboardPeriod?: string;
-  spendDashboardHiddenSourceIds?: string[];
-  providerAccentColors?: Record<string, string | null>;
+  claudeAllowReadingClaudeCodeCredentials?: boolean;
+  claudeDesktopCookiesEnabled?: boolean;
+  codexExternalOauthSourcesAllowed?: boolean;
+  antigravityAdditionalProfileHomes?: string[];
 }
 
 /**

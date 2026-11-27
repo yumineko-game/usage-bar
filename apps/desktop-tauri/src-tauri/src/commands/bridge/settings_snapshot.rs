@@ -25,35 +25,6 @@ pub struct ProviderCatalogEntry {
     pub(crate) cli_aliases: Vec<String>,
 }
 
-/// One provider's service status for the sidebar dot and the tray panel.
-/// `status` is `None` until the first successful poll.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProviderStatusEntry {
-    pub provider_id: String,
-    pub status: Option<ProviderServiceStatus>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProviderServiceStatus {
-    /// Upstream raw indicator: none, minor, major, critical, maintenance, unknown.
-    pub indicator: &'static str,
-    pub description: Option<String>,
-    /// Unix milliseconds of the feed's last update.
-    pub updated_at: Option<i64>,
-}
-
-impl From<&codexbar::status::ProviderStatus> for ProviderServiceStatus {
-    fn from(status: &codexbar::status::ProviderStatus) -> Self {
-        Self {
-            indicator: status.indicator.as_raw(),
-            description: status.description.clone(),
-            updated_at: status.updated_at.map(|at| at.timestamp_millis()),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingsSnapshot {
@@ -453,33 +424,8 @@ fn cost_summary_display_style_label(
     }
 }
 
-pub(crate) fn parse_cost_summary_display_style(
-    s: &str,
-) -> Option<codexbar::settings::CostSummaryDisplayStyle> {
-    use codexbar::settings::CostSummaryDisplayStyle;
-    match s {
-        "compact" => Some(CostSummaryDisplayStyle::Compact),
-        "detailed" => Some(CostSummaryDisplayStyle::Detailed),
-        "hidden" => Some(CostSummaryDisplayStyle::Hidden),
-        _ => None,
-    }
-}
-
-pub(in crate::commands) fn parse_theme(s: &str) -> Option<ThemePreference> {
-    match s {
-        "auto" => Some(ThemePreference::Auto),
-        "light" => Some(ThemePreference::Light),
-        "dark" => Some(ThemePreference::Dark),
-        _ => None,
-    }
-}
-
 fn metric_preference_label(pref: &MetricPreference) -> String {
     pref.key().into_owned()
-}
-
-pub(in crate::commands) fn parse_metric_preference(s: &str) -> Option<MetricPreference> {
-    MetricPreference::from_key(s)
 }
 
 #[cfg(test)]

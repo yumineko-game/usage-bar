@@ -1,10 +1,9 @@
 import { useState } from "react";
-import type { CodexAccountUsageSnapshot, CodexSwitchResult } from "../../../../../types/bridge";
+import type { CodexSwitchResult } from "../../../../../types/bridge";
 import { useCodexAccountsState } from "../../../../../hooks/useCodexAccountsState";
 import type { LocaleKey } from "../../../../../i18n/keys";
 import {
   codexAccountAdd,
-  codexAccountFetch,
   codexAccountReauthenticate,
   codexAccountRemove,
   codexAccountRestartDesktop,
@@ -15,8 +14,6 @@ import { buildCodexAccountSurfaceLabels } from "../../../../../components/codexA
 interface Props {
   t: (key: LocaleKey) => string;
   hidePersonalInfo?: boolean;
-  /** Settings `showAsUsed`; usage windows read as used instead of left. */
-  showAsUsed?: boolean;
 }
 
 /**
@@ -26,14 +23,13 @@ interface Props {
  * Multi-account Codex support (ADR 0003). Reads the shared account +
  * snapshot store via `get_codex_accounts_state` and drives the
  * `codex_account_*` IPC surface: add (login into a managed home), switch the
- * active ambient identity, refresh per-account usage, reauthenticate the
+ * active ambient identity, reauthenticate the
  * ambient identity, and remove managed homes. For MSIX Codex Desktop installs
  * a restart action is offered when a session snapshot is available to restore.
  */
-export function CodexAccountsSection({ t, hidePersonalInfo = false, showAsUsed = false }: Props) {
+export function CodexAccountsSection({ t, hidePersonalInfo = false }: Props) {
   const {
     accounts,
-    snapshots,
     displayNames,
     accountOrdinals,
     needsAuthentication: accountNeedsAuthentication,
@@ -42,7 +38,6 @@ export function CodexAccountsSection({ t, hidePersonalInfo = false, showAsUsed =
     error,
     setError,
     load,
-    setSnapshot,
   } = useCodexAccountsState();
   const [acting, setBusy] = useState(false);
   const busy = loading || acting;
@@ -72,19 +67,6 @@ export function CodexAccountsSection({ t, hidePersonalInfo = false, showAsUsed =
       const result = await codexAccountSwitch(id);
       setSwitchResult(result);
       await load();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleFetch = async (id: string) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const snapshot = await codexAccountFetch(id);
-      setSnapshot(id, snapshot);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -195,7 +177,6 @@ export function CodexAccountsSection({ t, hidePersonalInfo = false, showAsUsed =
         <>
           <ul className="credential-list codex-accounts-list">
             {accounts.map((account) => {
-              const snapshot = snapshots[account.id];
               return (
                 <li
                   key={account.id}
@@ -212,13 +193,6 @@ export function CodexAccountsSection({ t, hidePersonalInfo = false, showAsUsed =
                             ? t("CodexAccountsSourceAmbient")
                             : t("CodexAccountsSourceManaged")}
                         </span>
-                        {snapshot ? (
-                          <CodexUsagePill snapshot={snapshot} t={t} showAsUsed={showAsUsed} />
-                        ) : (
-                          <span className="credential-card__date">
-                            {t("CodexAccountsUsageUnavailable")}
-                          </span>
-                        )}
                       </span>
                     </div>
                     <div className="credential-card__actions">
@@ -230,14 +204,6 @@ export function CodexAccountsSection({ t, hidePersonalInfo = false, showAsUsed =
                       >
                         {t("CodexAccountsReauthenticateButton")}
                       </button>}
-                      <button
-                        type="button"
-                        className="credential-btn credential-btn--secondary"
-                        disabled={busy}
-                        onClick={() => void handleFetch(account.id)}
-                      >
-                        {t("CodexAccountsFetchButton")}
-                      </button>
                       <button
                         type="button"
                         className="credential-btn credential-btn--primary"
@@ -273,39 +239,5 @@ export function CodexAccountsSection({ t, hidePersonalInfo = false, showAsUsed =
         </>
       )}
     </section>
-  );
-}
-
-function CodexUsagePill({
-  snapshot,
-  t,
-  showAsUsed,
-}: {
-  snapshot: CodexAccountUsageSnapshot;
-  t: (key: LocaleKey) => string;
-  showAsUsed: boolean;
-}) {
-  const plan = snapshot.plan ?? "";
-  const blocked = snapshot.allowed === false || snapshot.limitReached === true;
-  const windows = [snapshot.primaryWindow, snapshot.secondaryWindow]
-    .filter((window): window is NonNullable<typeof window> => window != null)
-    .map((window) => {
-      const used = Math.max(0, Math.min(100, Math.round(window.usedPercent)));
-      const pct = showAsUsed
-        ? `${used}% ${t("PanelUsedSuffix")}`
-        : `${100 - used}% ${t("PanelLeftSuffix")}`;
-      if (window.limitWindowSeconds % 86_400 === 0) {
-        return `${window.limitWindowSeconds / 86_400}d ${pct}`;
-      }
-      if (window.limitWindowSeconds % 3_600 === 0) {
-        return `${window.limitWindowSeconds / 3_600}h ${pct}`;
-      }
-      return pct;
-    });
-  const label = [plan, ...windows].filter(Boolean).join(" · ");
-  return (
-    <span className={blocked ? "codex-usage codex-usage--blocked" : "codex-usage"}>
-      {label || t("CodexAccountsUsageUnavailable")}
-    </span>
   );
 }

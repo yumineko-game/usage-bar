@@ -165,7 +165,7 @@ export default function CardMetricRow({
   return (
     <div className="menu-metric">
       <span className="menu-metric__title">{title}</span>
-      <UsageProgressBar bar={row.bar} label={title} />
+      <UsageProgressBar bar={row.bar} label={title} paceHint={row.metaText} />
       {(row.percentText || row.resetText) && (
         <div className="menu-metric__head">
           {row.percentText && <span className="menu-metric__percent">{row.percentText}</span>}

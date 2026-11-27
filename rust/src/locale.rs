@@ -484,6 +484,7 @@ locale_keys! {
     PaceInReserve,
     PaceInDeficit,
     PaceLastsUntilReset,
+    PaceForecastUnavailable,
     PaceDailyTargetPercent,
     PaceDailyTargetCredits,
     PaceDailyTargetRequests,

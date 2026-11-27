@@ -7,20 +7,13 @@ mod auto_resume;
 mod coding_activity;
 mod commands;
 mod events;
-mod floatbar;
 mod geometry_store;
-mod http_server;
-mod powertoys;
 mod proof_harness;
 mod proof_tray_menu;
 mod shell;
-mod shortcut_bridge;
 mod state;
-mod status_poller;
-mod stay_awake;
 mod surface;
 mod surface_target;
-mod tray_accounts;
 mod tray_bridge;
 mod tray_menu;
 mod tray_presentation;
@@ -148,9 +141,13 @@ fn main() {
     proof_harness::install_window_origin_from_env(is_proof_mode);
     proof_harness::install_system_theme_from_env(is_proof_mode);
     let force_start_visible = std::env::var_os("CODEXBAR_START_VISIBLE").is_some();
+    if is_proof_mode {
+        codexbar::settings::apply_config_path_env();
+    }
     let mut settings = codexbar::settings::Settings::load();
-    settings.apply_display_mode_fold_migration();
-    settings.apply_quota_warning_migration();
+    if !is_proof_mode {
+        settings.apply_display_mode_fold_migration();
+    }
     let launch = launch_behavior(
         force_start_visible,
         settings.start_minimized,
@@ -186,14 +183,6 @@ fn main() {
         initial_state.provider_cache_updated_at = Some(seeded_at);
     }
 
-    // Proof runs must never write the real http_server.json or bind a port:
-    // the pathless controller makes apply fail with SaveFailed up front.
-    let http_server_controller = if is_proof_mode {
-        http_server::proof_controller()
-    } else {
-        http_server::controller()
-    };
-    let http_server_controller_for_exit = http_server_controller.clone();
     let has_usage_seed = !initial_state.seeded_provider_ids.is_empty();
 
     let context = tauri::generate_context!();
@@ -209,8 +198,6 @@ fn main() {
     tauri::Builder::default()
         .manage(Mutex::new(initial_state))
         .manage(commands::CurrencyRateCache::default())
-        .manage(http_server_controller.clone())
-        .plugin(shortcut_bridge::plugin())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if should_reopen_primary_window_from_instance_args(args.iter().skip(1)) {
@@ -220,17 +207,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::get_bootstrap_state,
             commands::get_provider_catalog,
-            status_poller::get_provider_statuses,
             commands::get_settings_snapshot,
             commands::get_currency_rates,
-            stay_awake::get_stay_awake_status,
-            http_server::get_http_server_state,
-            http_server::apply_http_server_config,
-            commands::list_agent_sessions,
-            commands::focus_agent_session,
             commands::update_settings,
-            commands::get_hooks_config,
-            commands::save_hooks_config,
             commands::set_surface_mode,
             commands::dismiss_tray_panel,
             commands::reset_flyout_position,
@@ -295,22 +274,9 @@ fn main() {
             commands::get_token_accounts,
             commands::add_token_account,
             commands::update_token_account,
-            commands::move_token_account,
             commands::remove_token_account,
             commands::set_active_token_account,
-            commands::set_token_account_claude_config_dir,
             commands::get_app_info,
-            commands::get_safe_diagnostics,
-            commands::get_provider_chart_data,
-            commands::get_provider_local_usage_summary,
-            commands::get_usage_spend_summary,
-            commands::write_usage_spend_export,
-            commands::export_preferences,
-            commands::import_preferences,
-            commands::get_spend_contract,
-            commands::get_codex_workspaces_snapshot,
-            commands::get_codex_session_tool_activity,
-            commands::get_codex_session_details,
             commands::reorder_providers,
             commands::reorder_visible_providers,
             commands::restore_default_provider_order,
@@ -318,8 +284,6 @@ fn main() {
             commands::set_provider_usage_source,
             commands::set_provider_auto_resume_after_quota_reset,
             commands::set_provider_optional_details,
-            commands::get_openai_live_usage,
-            commands::get_openai_org_rate_limits,
             commands::has_openrouter_management_api_key,
             commands::set_openrouter_management_api_key,
             commands::remove_openrouter_management_api_key,
@@ -340,8 +304,6 @@ fn main() {
             commands::list_jetbrains_detected_ides,
             commands::set_jetbrains_ide_path,
             commands::get_kiro_status,
-            commands::register_global_shortcut,
-            commands::unregister_global_shortcut,
             commands::get_work_area_rect,
             commands::get_system_accent_color,
             commands::get_system_theme,
@@ -360,7 +322,6 @@ fn main() {
             commands::open_path,
             tray_visibility::tray_visibility_status,
             tray_bridge::proof_activate_tray_item,
-            floatbar::resize_float_bar,
         ])
         .setup(move |app| {
             if let Err(error) = codexbar::providers::claude::accounts::cleanup_abandoned_logins() {
@@ -376,18 +337,7 @@ fn main() {
                 // and only a published refresh repaints the tray.
                 tray_bridge::refresh_tray_presentation(app.handle());
             }
-            shortcut_bridge::register(app.handle());
-            floatbar::install(app.handle());
             auto_refresh::install(app.handle().clone());
-            stay_awake::install(app.handle().clone());
-            if settings.powertoys_status_pipe_enabled {
-                powertoys::install(app.handle().clone());
-            }
-            // Proof runs drive surfaces with synthetic data; they never bind the
-            // user's saved server port.
-            if !is_proof_mode {
-                http_server::install(http_server_controller.clone());
-            }
 
             // Give the WebView/event loop one turn to finish startup before
             // routing shortcut launches into the tray panel. Without this, the
@@ -408,9 +358,6 @@ fn main() {
             Ok(())
         })
         .on_window_event(move |window, event| {
-            if floatbar::handle_window_event(window, event) {
-                return;
-            }
             if shell::flyout_window::handle_window_event(window, event) {
                 return;
             }
@@ -494,12 +441,7 @@ fn main() {
         })
         .build(context)
         .expect("failed to build UsageBar desktop shell")
-        .run(move |_app, event| {
-            if matches!(event, tauri::RunEvent::Exit) {
-                stay_awake::shutdown();
-                http_server_controller_for_exit.shutdown();
-            }
-        });
+        .run(|_, _| {});
 }
 
 #[cfg(test)]

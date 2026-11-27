@@ -455,120 +455,6 @@ fn launch_block_reason_helper_prefers_ssh() {
 }
 
 #[test]
-fn chart_data_serde_roundtrip_preserves_fields() {
-    use super::{
-        DailyCostPoint, DailyTokenPoint, DailyUsageBreakdown, ProviderChartData,
-        QuotaWindowHistoryBridge, QuotaWindowHistoryPoint, ServiceUsagePoint,
-    };
-
-    let original = ProviderChartData {
-        provider_id: "codex".into(),
-        cost_history: vec![
-            DailyCostPoint {
-                date: "2025-01-01".into(),
-                value: Some(1.25),
-                incomplete_request_count: None,
-            },
-            DailyCostPoint {
-                date: "2025-01-02".into(),
-                value: Some(0.0),
-                incomplete_request_count: None,
-            },
-        ],
-        credits_history: vec![DailyCostPoint {
-            date: "2025-01-01".into(),
-            value: Some(42.0),
-            incomplete_request_count: None,
-        }],
-        usage_breakdown: vec![DailyUsageBreakdown {
-            day: "2025-01-01".into(),
-            services: vec![
-                ServiceUsagePoint {
-                    service: "gpt-4o".into(),
-                    credits_used: 10.0,
-                },
-                ServiceUsagePoint {
-                    service: "gpt-4o-mini".into(),
-                    credits_used: 3.5,
-                },
-            ],
-            total_credits_used: 13.5,
-        }],
-        local_usage: None,
-        tokens_history: vec![DailyTokenPoint {
-            date: "2025-01-01".into(),
-            tokens: 123_456,
-        }],
-        tokens_incomplete: true,
-        quota_window_history: Some(QuotaWindowHistoryBridge {
-            provider_id: "codex".into(),
-            account_scope: Some("person@example.com".into()),
-            windows: vec![QuotaWindowHistoryPoint {
-                offset: 0,
-                start: "2025-01-01T00:00:00Z".into(),
-                end: "2025-01-08T00:00:00Z".into(),
-                total_tokens: Some(123_456),
-                total_cost_usd: None,
-                tokens_are_complete: true,
-                cost_is_complete: false,
-                entry_count: 2,
-                boundaries_are_estimated: true,
-            }],
-            history_coverage_established: false,
-        }),
-    };
-
-    let json = serde_json::to_string(&original).expect("serialize");
-    assert!(
-        json.contains("\"providerId\":\"codex\""),
-        "camelCase providerId: {json}"
-    );
-    assert!(json.contains("\"costHistory\""));
-    assert!(json.contains("\"creditsHistory\""));
-    assert!(json.contains("\"usageBreakdown\""));
-    assert!(json.contains("\"localUsage\":null"));
-    assert!(json.contains("\"creditsUsed\":10.0"));
-    assert!(json.contains("\"totalCreditsUsed\":13.5"));
-    assert!(json.contains("\"tokensHistory\""));
-    assert!(json.contains("\"tokens\":123456"));
-    assert!(json.contains("\"tokensIncomplete\":true"));
-
-    let back: ProviderChartData = serde_json::from_str(&json).expect("deserialize");
-    assert_eq!(back.provider_id, "codex");
-    assert_eq!(back.cost_history.len(), 2);
-    assert_eq!(back.cost_history[0].date, "2025-01-01");
-    assert_eq!(back.credits_history[0].value, Some(42.0));
-    assert_eq!(back.usage_breakdown[0].services.len(), 2);
-    assert_eq!(back.usage_breakdown[0].total_credits_used, 13.5);
-    assert_eq!(back.tokens_history[0].tokens, 123_456);
-    assert!(back.tokens_incomplete);
-    let history = back.quota_window_history.expect("quota history");
-    assert_eq!(history.account_scope.as_deref(), Some("person@example.com"));
-    assert_eq!(history.windows[0].offset, 0);
-    assert!(history.windows[0].boundaries_are_estimated);
-    assert!(!history.windows[0].cost_is_complete);
-    assert!(!history.history_coverage_established);
-
-    let mut legacy = serde_json::to_value(&original).expect("serialize legacy fixture");
-    legacy
-        .as_object_mut()
-        .expect("chart object")
-        .remove("quotaWindowHistory");
-    let legacy_back: ProviderChartData =
-        serde_json::from_value(legacy).expect("legacy chart payload remains readable");
-    assert!(legacy_back.quota_window_history.is_none());
-}
-
-#[test]
-fn chart_data_for_unknown_provider_is_empty() {
-    let data =
-        super::build_provider_chart_data("this-provider-definitely-does-not-exist".into(), None);
-    assert_eq!(data.provider_id, "this-provider-definitely-does-not-exist");
-    assert!(data.credits_history.is_empty());
-    assert!(data.usage_breakdown.is_empty());
-}
-
-#[test]
 fn japanese_provider_snapshot_localizes_weekly_label() {
     let metadata = instantiate_provider(ProviderId::Claude).metadata().clone();
     let usage = codexbar::core::UsageSnapshot::new(codexbar::core::RateWindow::new(10.0))
@@ -617,14 +503,6 @@ fn japanese_provider_snapshot_localizes_pace_reserve_description() {
     assert!(secondary.reserve_percent.is_some());
     assert!(secondary.reserve_will_last_to_reset);
     assert!(secondary.reserve_description.is_none());
-}
-
-#[test]
-fn chart_data_requires_account_email_for_codex() {
-    let (credits_history, usage_breakdown) =
-        super::chart::load_openai_dashboard_chart_data_for_test("codex", None);
-    assert!(credits_history.is_empty());
-    assert!(usage_breakdown.is_empty());
 }
 
 // ── Phase 6d — credential detection UIs ────────────────────────

@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type {
   ProviderCatalogEntry,
-  ProviderUsageSnapshot,
   SettingsSnapshot,
   SettingsUpdate,
 } from "../../../types/bridge";
-import { SettingsGroup } from "../../../components/FormControls";
+import { Field, SettingsGroup, Toggle } from "../../../components/FormControls";
 import { formatRelativeUpdated } from "../../../lib/relativeTime";
 import { nextEnabledProviders } from "../settingsTabs";
 import { useLocale } from "../../../hooks/useLocale";
@@ -19,8 +18,6 @@ import {
   getProviderGatewayUrl,
   getProviderRegionOptions,
   getTokenAccountProviders,
-  openProviderDashboard,
-  openProviderStatusPage,
   refreshProviders,
   revokeProviderCredentials,
   setProviderGatewayUrl,
@@ -35,11 +32,6 @@ import {
 import { buildSubtitle } from "./providerDetailFormat";
 import { IdentitySection } from "./sections/IdentitySection";
 import { UsageSection } from "./sections/UsageSection";
-import { UsageItemVisibilitySection } from "./sections/UsageItemVisibilitySection";
-import { UsageDetailsSection } from "./sections/UsageDetailsSection";
-import { CostSection } from "./sections/CostSection";
-import { QuickActionsSection } from "./sections/QuickActionsSection";
-import { ChartsSection } from "./sections/charts/ChartsSection";
 import { CookieSourceSection } from "./sections/CookieSourceSection";
 import { UsageSourceSection } from "./sections/UsageSourceSection";
 import { shouldShowCookieSource } from "./sections/usageSourcePolicy";
@@ -50,8 +42,6 @@ import { GrokAccountsSection } from "./sections/credentials/GrokAccountsSection"
 import { TokenAccountsPanel } from "../tokens/TokenAccountsPanel";
 import { ApiKeySection } from "./ApiKeySection";
 import { CookieSection } from "./CookieSection";
-import { MenuBarMetricSection } from "./sections/MenuBarMetricSection";
-import { AccentColorSection } from "./sections/AccentColorSection";
 import { ProviderIssueNotice } from "./sections/ProviderIssueNotice";
 import { CredentialStorageSection } from "./sections/CredentialStorageSection";
 import { CredentialsDispatcher } from "./sections/CredentialsDispatcher";
@@ -60,9 +50,8 @@ import {
   WayfinderGatewaySection,
 } from "./sections/WayfinderGatewaySection";
 import { AzureApiVersionSection } from "./sections/AzureApiVersionSection";
+import { AntigravityProfileHomesField } from "./sections/AntigravityProfileHomesField";
 import { MuseBrowserTeamSection } from "./sections/MuseBrowserTeamSection";
-import { QuotaWarningsSection } from "./sections/QuotaWarningsSection";
-import { OptionsSection } from "./sections/OptionsSection";
 
 interface Props {
   providerId: string | null;
@@ -70,14 +59,10 @@ interface Props {
   settings: SettingsSnapshot;
   /** Provider catalog, for writing `enabledProviders` in catalog order. */
   catalog: readonly Pick<ProviderCatalogEntry, "id">[];
-  /** Live tray snapshot for `providerId`; feeds the details moved out of the tray card. */
-  liveSnapshot?: ProviderUsageSnapshot | null;
   cookieDomain?: string | null;
   resetTimeRelative: boolean;
   /** Show "N% used" next to remaining on per-account usage rows. */
   showAsUsed?: boolean;
-  providerMetrics: SettingsSnapshot["providerMetrics"];
-  copilotSeatCreditEntitlement: SettingsSnapshot["copilotSeatCreditEntitlement"];
   /** Per-provider accent color overrides (CLI name → hex color). */
   providerAccentColors: SettingsSnapshot["providerAccentColors"];
   wayfinderGatewayUrl: string;
@@ -86,23 +71,13 @@ interface Props {
   onSettingsChange: (patch: SettingsUpdate) => void;
 }
 
-/**
- * Settings > Providers detail pane, in the macOS order
- * (`PreferencesProviderDetailView`): header, Usage, Visible usage items,
- * Error, Menu bar metric, Connection, Token accounts (then the Windows-only
- * credential storage), Fields, Accounts, Accent color, Quota warnings and
- * Options. Groups whose sections render nothing are hidden by CSS.
- */
 export function ProviderDetailPane({
   providerId,
   settings,
   catalog,
-  liveSnapshot = null,
   cookieDomain = null,
   resetTimeRelative,
   showAsUsed = false,
-  providerMetrics,
-  copilotSeatCreditEntitlement,
   providerAccentColors,
   wayfinderGatewayUrl,
   hidePersonalInfo,
@@ -264,9 +239,7 @@ export function ProviderDetailPane({
     };
   }, [providerId, load]);
 
-  // Visibility changes are persisted through the shared settings command and
-  // broadcast to detached windows. Reload the selected provider so the raw
-  // descriptor list and hidden IDs stay authoritative after that event.
+  // Reload after connection settings change in another window.
   useEffect(() => {
     if (!providerId) return;
     const signal = { stale: false };
@@ -305,7 +278,7 @@ export function ProviderDetailPane({
     }
   };
 
-  const handleSwitchAccount = async () => {
+  const handleLogin = async () => {
     setBusy(true);
     try {
       await triggerProviderLogin(detail.id);
@@ -333,18 +306,6 @@ export function ProviderDetailPane({
     }
   };
 
-  const handleOpenDashboard = () => {
-    void openProviderDashboard(detail.id).catch(setErr);
-  };
-  const handleOpenStatusPage = () => {
-    void openProviderStatusPage(detail.id).catch(setErr);
-  };
-  const handleBuyCredits = () => {
-    if (detail.buyCreditsUrl) {
-      void openProviderDashboard(detail.id).catch(setErr);
-    }
-  };
-
   const enabled = settings.enabledProviders.includes(detail.id);
   const handleToggleEnabled = (on: boolean) =>
     onSettingsChange({
@@ -353,6 +314,7 @@ export function ProviderDetailPane({
   // macOS shows the error group only for a recorded fetch error; every
   // snapshot carries an errorState, including "ready" after a good fetch.
   const hasFetchError = Boolean(detail.lastError?.trim());
+  const hasLoginFlow = detail.id !== "copilot" && (detail.id === "kiro" || Boolean(detail.dashboardUrl));
   const updatedMs = detail.lastUpdated ? Date.parse(detail.lastUpdated) : Number.NaN;
   const updatedText = Number.isFinite(updatedMs)
     ? formatRelativeUpdated(updatedMs, t, nowMs)
@@ -385,65 +347,34 @@ export function ProviderDetailPane({
           resetTimeRelative={resetTimeRelative}
           display={{
             showResetWhenExhausted: settings.showResetWhenExhausted,
-            showPace:
-              (settings.showPace ?? true) &&
-              providerAllowsPace(detail.id, detail.sourceLabel),
+            showPace: providerAllowsPace(detail.id, detail.sourceLabel),
             showAsUsed,
             usageThresholds: settings,
-            quotaWarningMarkersVisible: settings.quotaWarningMarkersVisible ?? true,
-            weeklyProgressWorkDays: settings.weeklyProgressWorkDays ?? null,
-            workdayTickStyle: settings.workdayTickStyle ?? "subtle",
+            quotaWarningMarkersVisible: false,
           }}
           accentColor={providerBarAccent(detail.id, providerAccentColors[detail.id])}
           t={t}
         />
-        <CostSection cost={detail.cost} t={t} />
-        <UsageDetailsSection
-          provider={liveSnapshot?.providerId === detail.id ? liveSnapshot : null}
-          paceReservePositive={settings.menuBarPaceReservePositive ?? false}
-        />
-        <ChartsSection
-          providerId={detail.id}
-          accountEmail={detail.email}
-          accentColor={providerAccentColors[detail.id]}
-          openAiApiUsage={detail.openAiApiUsage}
-          t={t}
-        />
-        <QuickActionsSection
-          provider={detail}
-          busy={busy}
-          onSwitchAccount={handleSwitchAccount}
-          onOpenDashboard={handleOpenDashboard}
-          onOpenStatusPage={handleOpenStatusPage}
-          onBuyCredits={handleBuyCredits}
-          t={t}
-        />
       </SettingsGroup>
-
-      <UsageItemVisibilitySection
-        provider={detail}
-        disabled={settingsDisabled}
-        t={t}
-        onChange={onSettingsChange}
-        costSummaryHidden={settings.costSummaryDisplayStyle === "hidden"}
-      />
 
       {hasFetchError && (
         <ProviderIssueNotice detail={detail} t={t} hidePersonalInfo={hidePersonalInfo} />
       )}
 
-      <MenuBarMetricSection
-        provider={detail}
-        providerMetrics={providerMetrics}
-        disabled={settingsDisabled}
-        t={t}
-        onChange={onSettingsChange}
-      />
-
       <SettingsGroup
         className="provider-detail-group provider-connection-group"
         title={t("ProviderSectionConnection")}
       >
+        {hasLoginFlow && (
+          <button
+            type="button"
+            className="credential-btn credential-btn--primary"
+            disabled={busy}
+            onClick={() => void handleLogin()}
+          >
+            {t("CodexAccountsSignInButton")}
+          </button>
+        )}
         <UsageSourceSection
           providerId={detail.id}
           currentValue={detail.usageSource}
@@ -458,6 +389,47 @@ export function ProviderDetailPane({
             manualCookieMissing={detail.manualCookieMissing}
             t={t}
             onChanged={reload}
+          />
+        )}
+        {detail.id === "claude" && (
+          <Field
+            label={t("ProviderClaudeAllowReadingClaudeCodeCredentials")}
+            description={t("ProviderClaudeAllowReadingClaudeCodeCredentialsHelp")}
+          >
+            <Toggle
+              variant="switch"
+              checked={settings.claudeAllowReadingClaudeCodeCredentials ?? false}
+              disabled={settingsDisabled}
+              onChange={(value) => onSettingsChange({ claudeAllowReadingClaudeCodeCredentials: value })}
+            />
+          </Field>
+        )}
+        {detail.id === "claude" && shouldShowCookieSource(detail.id, detail.usageSource) && (
+          <Field label={t("ProviderClaudeDesktopCookies")} description={t("ProviderClaudeDesktopCookiesHelp")}>
+            <Toggle
+              variant="switch"
+              checked={settings.claudeDesktopCookiesEnabled ?? false}
+              disabled={settingsDisabled}
+              onChange={(value) => onSettingsChange({ claudeDesktopCookiesEnabled: value })}
+            />
+          </Field>
+        )}
+        {detail.id === "codex" && (
+          <Field label={t("ProviderCodexExternalOauth")} description={t("ProviderCodexExternalOauthHelp")}>
+            <Toggle
+              variant="switch"
+              checked={settings.codexExternalOauthSourcesAllowed ?? false}
+              disabled={settingsDisabled}
+              onChange={(value) => onSettingsChange({ codexExternalOauthSourcesAllowed: value })}
+            />
+          </Field>
+        )}
+        {detail.id === "antigravity" && (
+          <AntigravityProfileHomesField
+            value={settings.antigravityAdditionalProfileHomes}
+            disabled={settingsDisabled}
+            t={t}
+            onSettingsChange={onSettingsChange}
           />
         )}
         {detail.id === "muse" && (
@@ -535,7 +507,7 @@ export function ProviderDetailPane({
 
       <SettingsGroup className="provider-detail-group provider-accounts-group">
         {detail.id === "codex" && (
-          <CodexAccountsSection t={t} hidePersonalInfo={hidePersonalInfo} showAsUsed={showAsUsed} />
+          <CodexAccountsSection t={t} hidePersonalInfo={hidePersonalInfo} />
         )}
         {detail.id === "claude" && (
           <ClaudeAccountsSection
@@ -558,30 +530,6 @@ export function ProviderDetailPane({
         )}
       </SettingsGroup>
 
-      <AccentColorSection
-        providerId={detail.id}
-        accentColor={providerAccentColors[detail.id] ?? null}
-        disabled={settingsDisabled}
-        t={t}
-        onChange={onSettingsChange}
-      />
-
-      <QuotaWarningsSection
-        providerId={detail.id}
-        settings={settings}
-        disabled={settingsDisabled}
-        t={t}
-        onChange={onSettingsChange}
-      />
-
-      <OptionsSection
-        detail={detail}
-        settings={settings}
-        disabled={settingsDisabled}
-        t={t}
-        onSettingsChange={onSettingsChange}
-        onReload={reload}
-      />
     </div>
   );
 }

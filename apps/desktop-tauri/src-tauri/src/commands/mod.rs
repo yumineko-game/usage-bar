@@ -23,14 +23,10 @@ use crate::state::AppState;
 use crate::surface::SurfaceMode;
 use crate::surface_target::SurfaceTarget;
 
-mod chart;
 mod currency;
-mod spend_contract;
 mod tokens;
 mod updater;
-mod usage_spend;
 
-mod agent_sessions;
 mod bridge;
 mod browser_import;
 mod claude_accounts;
@@ -38,45 +34,33 @@ pub(crate) mod claude_reconciliation;
 mod claude_swap_usage;
 mod claude_usage;
 mod codex_accounts;
-mod codex_workspaces;
 mod credential_alerts;
 mod credential_detection;
 mod credentials;
-mod diagnostics;
 mod grok_accounts;
-mod hooks;
 mod locale_cmd;
-mod openai_live;
 mod ordered_save;
-mod preferences_transfer;
 mod provider_account_usage;
 mod provider_detail;
 mod provider_refresh;
 mod provider_settings;
 mod providers;
 mod settings;
-mod shortcuts;
 mod surface;
 mod system;
 mod usage_items;
 mod warning_identity;
 
-pub use agent_sessions::*;
 pub(crate) use bridge::*;
 pub use browser_import::*;
 pub use claude_accounts::*;
 pub use claude_swap_usage::*;
 pub use claude_usage::*;
 pub use codex_accounts::*;
-pub use codex_workspaces::*;
 pub use credential_detection::*;
 pub use credentials::*;
-pub use diagnostics::*;
 pub use grok_accounts::*;
-pub use hooks::*;
 pub use locale_cmd::*;
-pub use openai_live::*;
-pub use preferences_transfer::*;
 pub use provider_account_usage::*;
 pub use provider_detail::*;
 #[cfg(test)]
@@ -85,7 +69,6 @@ pub(crate) use provider_refresh::{ProviderRefreshOutcome, ProviderRefreshSkipRea
 pub use provider_settings::*;
 pub use providers::*;
 pub use settings::*;
-pub use shortcuts::*;
 pub use surface::*;
 pub use system::*;
 pub(crate) use usage_items::*;
@@ -97,8 +80,6 @@ mod fetch_context_tests;
 #[cfg(test)]
 mod last_good_owner_tests;
 #[cfg(test)]
-mod openai_live_tests;
-#[cfg(test)]
 mod session_cookie_scope_tests;
 #[cfg(test)]
 mod tests;
@@ -106,12 +87,9 @@ mod tests;
 #[cfg(test)]
 mod token_account_source_tests;
 
-pub use chart::*;
 pub use currency::*;
-pub use spend_contract::*;
 pub use tokens::*;
 pub use updater::*;
-pub use usage_spend::*;
 
 const PROVIDER_CACHE_STALE_AFTER: std::time::Duration = std::time::Duration::from_secs(30);
 const MAX_API_KEY_LEN: usize = 16 * 1024;

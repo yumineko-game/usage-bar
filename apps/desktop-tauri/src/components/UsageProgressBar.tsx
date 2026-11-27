@@ -66,6 +66,7 @@ export default function UsageProgressBar({
 }) {
   const id = useId().replace(/:/g, "");
   const pace = bar.pacePercent;
+  const hint = pace == null && inlineValue === undefined ? undefined : paceHint ?? undefined;
   const progress = {
     role: "progressbar",
     "aria-label": label,
@@ -73,19 +74,18 @@ export default function UsageProgressBar({
     "aria-valuemin": 0,
     "aria-valuemax": 100,
     "aria-valuetext": bar.valueText,
+    "aria-description": hint,
   };
   if (inlineValue !== undefined) {
     return (
-      <div className="menu-metric__gauge" {...progress} aria-description={paceHint ?? undefined}>
+      <div className="menu-metric__gauge" {...progress} title={hint}>
         <span className="menu-metric__gauge-fill" style={{ width: `${bar.fillPercent}%` }} />
-        {pace != null && (
-          <span
-            className="menu-metric__gauge-pace"
-            data-deficit={bar.paceDeficit}
-            style={{ left: `clamp(1px, ${pace}%, 100% - 1px)` }}
-            title={paceHint ?? undefined}
-          />
-        )}
+        <span
+          className="menu-metric__gauge-pace"
+          data-deficit={bar.paceDeficit}
+          data-unavailable={pace == null}
+          style={{ left: pace == null ? "calc(100% - 1px)" : `clamp(1px, ${pace}%, 100% - 1px)` }}
+        />
         {inlineValue && <span className="menu-metric__gauge-value">{inlineValue}</span>}
       </div>
     );
@@ -102,6 +102,7 @@ export default function UsageProgressBar({
       height={height}
       {...progress}
     >
+      {hint && <title>{hint}</title>}
       {warnings.length > 0 && <CutMask id={`${id}-warnings`} cuts={warnings} width={WARNING_CUT} height={height} />}
       {pace != null && <CutMask id={`${id}-pace`} cuts={[pace]} width={PACE_CUT} height={height} />}
       <g mask={pace != null ? `url(#${id}-pace)` : undefined}>

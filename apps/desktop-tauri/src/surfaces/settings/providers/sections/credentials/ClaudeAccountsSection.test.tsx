@@ -130,22 +130,6 @@ describe("ClaudeAccountsSection", () => {
     expect(screen.getByText("Acme Org · max")).toBeInTheDocument();
   });
 
-  it("passes the saved show-as-used preference to per-account usage", async () => {
-    mocks.claudeAccountsList.mockResolvedValue([{
-      ...current,
-      usage: {
-        fiveHour: { usedPercent: 30, resetsAt: null },
-        sevenDay: null,
-        updatedAt: "2026-10-11T00:00:00Z",
-      },
-    }]);
-    const { rerender } = render(<ClaudeAccountsSection t={t} showAsUsed />);
-    await screen.findByText("70% PanelLeftSuffix");
-    expect(screen.getByText("30% PanelUsedSuffix")).toBeInTheDocument();
-    rerender(<ClaudeAccountsSection t={t} showAsUsed={false} />);
-    expect(screen.queryByText("30% PanelUsedSuffix")).toBeNull();
-  });
-
   it("shows the claude-swap list only while claude-swap is on", async () => {
     const { rerender } = render(<ClaudeAccountsSection t={t} />);
     await screen.findByText(current.email);

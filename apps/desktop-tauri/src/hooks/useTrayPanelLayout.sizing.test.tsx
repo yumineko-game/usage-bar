@@ -159,6 +159,18 @@ describe("useTrayPanelLayout sizing", () => {
     );
   }
 
+  it("keeps the configured height when usage data expands or contracts", async () => {
+    setScrollHeight(100);
+    const { result } = renderHook(() => useTrayPanelLayout(hookProps({ fixedHeight: 344 })));
+    await waitFor(() => expect(result.current.layoutReady).toBe(true));
+    expect(lastResize().height).toBe(344);
+    expect(surface.style.getPropertyValue("--tray-fixed-height")).toBe("344px");
+    const resizes = windowMocks.setSize.mock.calls.length;
+    await nudgePass(result, 500, "344px");
+    await nudgePass(result, 90, "344px");
+    expect(windowMocks.setSize).toHaveBeenCalledTimes(resizes);
+  });
+
   it("does not feed measurement style changes back into another auto-fit pass", async () => {
     vi.stubGlobal("ResizeObserver", StyleFeedbackResizeObserver);
     setScrollHeight(1_200);

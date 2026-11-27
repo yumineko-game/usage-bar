@@ -5,17 +5,7 @@ use crate::surface::SurfaceMode;
 // Must mirror the frontend `SettingsTabId` union
 // (apps/desktop-tauri/src/types/bridge.ts) and `TAB_META` in
 // apps/desktop-tauri/src/surfaces/settings/settingsTabs.ts.
-const SETTINGS_TAB_IDS: &[&str] = &[
-    "general",
-    "providers",
-    "notifications",
-    "menuBar",
-    "menu",
-    "usageSpend",
-    "advanced",
-    "hooks",
-    "about",
-];
+const SETTINGS_TAB_IDS: &[&str] = &["general", "providers", "about"];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -119,8 +109,9 @@ mod tests {
 
     #[test]
     fn supported_settings_tabs_match_shell_tabs() {
-        assert!(is_supported_settings_tab("menuBar"));
-        assert!(is_supported_settings_tab("hooks"));
+        assert!(is_supported_settings_tab("general"));
+        assert!(!is_supported_settings_tab("hooks"));
+        assert!(!is_supported_settings_tab("menuBar"));
         assert!(is_supported_settings_tab("about"));
         assert!(!is_supported_settings_tab("apiKeys"));
         assert!(!is_supported_settings_tab("security"));

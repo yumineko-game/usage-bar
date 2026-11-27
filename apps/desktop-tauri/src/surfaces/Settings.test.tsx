@@ -45,23 +45,8 @@ vi.mock("../hooks/useLocale", () => ({ useLocale: () => ({ t: (key: string) => k
 vi.mock("./settings/tabs/GeneralTab", () => ({
   default: ({ mode }: { mode: string }) => <div data-testid="tab">general:{mode}</div>,
 }));
-vi.mock("./settings/tabs/MenuBarTab", () => ({
-  default: () => <div data-testid="tab">menuBar</div>,
-}));
-vi.mock("./settings/tabs/MenuTab", () => ({
-  default: () => <div data-testid="tab">menu</div>,
-}));
-vi.mock("./settings/tabs/AdvancedTab", () => ({
-  default: () => <div data-testid="tab">advanced</div>,
-}));
-vi.mock("./settings/tabs/HooksTab", () => ({
-  default: () => <div data-testid="tab">hooks</div>,
-}));
 vi.mock("./settings/tabs/AboutTab", () => ({
   default: () => <div data-testid="tab">about</div>,
-}));
-vi.mock("./settings/tabs/UsageSpendTab", () => ({
-  default: () => <div data-testid="tab">usageSpend</div>,
 }));
 vi.mock("./settings/tabs/ProvidersTab", () => ({
   default: ({ providerId }: { providerId: string | null }) => (
@@ -108,23 +93,14 @@ describe("Settings sidebar", () => {
     mocks.restoreDefaultProviderOrder.mockResolvedValue([]);
   });
 
-  it("lists the app panes in the macOS order, then the providers with an on count", () => {
+  it("lists startup and updates, then the providers with an on count", () => {
     const { container } = render(<Settings state={state} />);
     const panes = Array.from(
       container.querySelectorAll<HTMLElement>(".settings-sidebar__pane"),
       (pane) => pane.dataset.paneId,
     );
-    expect(panes).toEqual([
-      "general",
-      "usageSpend",
-      "notifications",
-      "menuBar",
-      "menu",
-      "advanced",
-      "hooks",
-      "about",
-    ]);
-    expect(container.querySelectorAll(".settings-sidebar__chip")).toHaveLength(7);
+    expect(panes).toEqual(["general", "about"]);
+    expect(container.querySelectorAll(".settings-sidebar__chip")).toHaveLength(1);
     expect(container.querySelector(".settings-sidebar__app-icon")).not.toBeNull();
     expect(providerNames()).toEqual(["codex", "zai", "claude", "cline", "grok"]);
     expect(screen.getByText("SettingsSidebarProvidersOnCount")).toBeInTheDocument();
@@ -133,9 +109,9 @@ describe("Settings sidebar", () => {
   it("titles the window after the pane, or the provider on a provider pane", () => {
     render(<Settings state={state} />);
     expect(title()).toBe("TabGeneral");
-    fireEvent.click(screen.getByRole("button", { name: "TabMenuBar" }));
-    expect(title()).toBe("TabMenuBar");
-    expect(screen.getByTestId("tab").textContent).toBe("menuBar");
+    fireEvent.click(screen.getByRole("button", { name: "UpdatesTitle" }));
+    expect(title()).toBe("UpdatesTitle");
+    expect(screen.getByTestId("tab").textContent).toBe("about");
     fireEvent.click(row("claude"));
     expect(title()).toBe("Claude");
     expect(screen.getByTestId("tab").textContent).toBe("providers:claude");
@@ -158,28 +134,6 @@ describe("Settings sidebar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "ProviderSidebarClearSearch" }));
     expect(providerNames()).toHaveLength(5);
-  });
-
-  it("sorts enabled providers first, alphabetically, without saving an order", () => {
-    render(<Settings state={makeState({ providersSortedAlphabetically: true })} />);
-    expect(providerNames()).toEqual(["codex", "grok", "zai", "claude", "cline"]);
-    const sort = screen.getByRole("button", { name: "SettingsSidebarSortProviders" });
-    expect(sort).toHaveAttribute("aria-pressed", "true");
-    expect(sort).toHaveAttribute("title", "SettingsSidebarSortOnHint");
-
-    fireEvent.keyDown(row("codex"), { key: "ArrowDown", altKey: true });
-    expect(mocks.reorderVisibleProviders).not.toHaveBeenCalled();
-
-    fireEvent.click(sort);
-    expect(mocks.update).toHaveBeenCalledWith({ providersSortedAlphabetically: false });
-  });
-
-  it("turns sorting on from the toggle", () => {
-    render(<Settings state={state} />);
-    const sort = screen.getByRole("button", { name: "SettingsSidebarSortProviders" });
-    expect(sort).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(sort);
-    expect(mocks.update).toHaveBeenCalledWith({ providersSortedAlphabetically: true });
   });
 
   it("enables and disables providers from the context menu in saved order", () => {
@@ -218,45 +172,6 @@ describe("Settings sidebar", () => {
   const optionsButton = () => screen.getByRole("button", { name: "ProviderSidebarOptions" });
   const undoItem = () => screen.getByRole("menuitem", { name: "ProviderSidebarUndoOrder" });
 
-  it("shows only enabled providers with the enabled-only option, and does not reorder then", () => {
-    render(<Settings state={makeState({ providersEnabledOnly: true })} />);
-    expect(providerNames()).toEqual(["codex", "zai", "grok"]);
-    fireEvent.keyDown(row("codex"), { key: "ArrowDown", altKey: true });
-    expect(mocks.reorderVisibleProviders).not.toHaveBeenCalled();
-
-    fireEvent.click(optionsButton());
-    expect(screen.getByRole("menuitemcheckbox", { name: "ProviderSidebarShowEnabledOnly" })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
-    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "ProviderSidebarShowEnabledOnly" }));
-    expect(mocks.update).toHaveBeenCalledWith({ providersEnabledOnly: false });
-  });
-
-  it("turns the enabled-only option on from the options menu", () => {
-    render(<Settings state={state} />);
-    fireEvent.click(optionsButton());
-    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "ProviderSidebarShowEnabledOnly" }));
-    expect(mocks.update).toHaveBeenCalledWith({ providersEnabledOnly: true });
-  });
-
-  it("undoes the last drag reorder from the options menu", () => {
-    render(<Settings state={state} />);
-    fireEvent.keyDown(row("codex"), { key: "ArrowDown", altKey: true });
-    expect(providerNames()).toEqual(["zai", "codex", "claude", "cline", "grok"]);
-
-    fireEvent.click(optionsButton());
-    fireEvent.click(undoItem());
-    expect(mocks.reorderVisibleProviders).toHaveBeenLastCalledWith([
-      "codex",
-      "zai",
-      "claude",
-      "cline",
-      "grok",
-    ]);
-    expect(providerNames()).toEqual(["codex", "zai", "claude", "cline", "grok"]);
-  });
-
   it("undoes the last drag reorder with Ctrl+Z", () => {
     const { container } = render(<Settings state={state} />);
     fireEvent.keyDown(row("codex"), { key: "ArrowDown", altKey: true });
@@ -268,75 +183,6 @@ describe("Settings sidebar", () => {
       "cline",
       "grok",
     ]);
-  });
-
-  it("drops the undo once the saved order changes outside the sidebar", () => {
-    const { rerender } = render(<Settings state={state} />);
-    fireEvent.keyDown(row("codex"), { key: "ArrowDown", altKey: true });
-    fireEvent.click(optionsButton());
-    expect(undoItem()).toBeEnabled();
-    fireEvent.click(optionsButton());
-
-    const moved = [...providers].reverse();
-    rerender(<Settings state={{ ...state, providers: moved } as BootstrapState} />);
-    fireEvent.click(optionsButton());
-    expect(undoItem()).toBeDisabled();
-  });
-
-  it("restores the default order and turns sorting off, and undo brings both back", async () => {
-    mocks.restoreDefaultProviderOrder.mockResolvedValue(
-      providers.map((p, order) => ({ id: p.id, displayName: p.displayName, enabled: true, order })),
-    );
-    render(<Settings state={makeState({ providersSortedAlphabetically: true })} />);
-    fireEvent.click(optionsButton());
-    fireEvent.click(screen.getByRole("menuitem", { name: "ProviderSidebarRestoreDefaultOrder" }));
-    expect(mocks.update).toHaveBeenCalledWith({ providersSortedAlphabetically: false });
-    expect(mocks.restoreDefaultProviderOrder).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(optionsButton());
-    await waitFor(() => expect(undoItem()).toBeEnabled());
-    fireEvent.click(undoItem());
-    expect(mocks.update).toHaveBeenLastCalledWith({ providersSortedAlphabetically: true });
-    expect(mocks.reorderVisibleProviders).toHaveBeenLastCalledWith([
-      "codex",
-      "zai",
-      "claude",
-      "cline",
-      "grok",
-    ]);
-  });
-
-  it("disables restore default order while the order already matches the built-in order", () => {
-    const defaultOrder = providers.map((p) => p.id);
-    render(<Settings state={makeState({ providerDefaultOrder: defaultOrder })} />);
-    fireEvent.click(optionsButton());
-    expect(screen.getByRole("menuitem", { name: "ProviderSidebarRestoreDefaultOrder" })).toBeDisabled();
-    fireEvent.click(optionsButton());
-    fireEvent.keyDown(row("codex"), { key: "ArrowDown", altKey: true });
-    fireEvent.click(optionsButton());
-    expect(screen.getByRole("menuitem", { name: "ProviderSidebarRestoreDefaultOrder" })).toBeEnabled();
-  });
-
-  it("keeps restore default order available while sorting is on, even at the built-in order", () => {
-    const defaultOrder = providers.map((p) => p.id);
-    render(
-      <Settings
-        state={makeState({ providerDefaultOrder: defaultOrder, providersSortedAlphabetically: true })}
-      />,
-    );
-    fireEvent.click(optionsButton());
-    expect(screen.getByRole("menuitem", { name: "ProviderSidebarRestoreDefaultOrder" })).toBeEnabled();
-  });
-
-  it("turns sorting back on when restoring the default order fails", async () => {
-    mocks.restoreDefaultProviderOrder.mockRejectedValue(new Error("save failed"));
-    render(<Settings state={makeState({ providersSortedAlphabetically: true })} />);
-    fireEvent.click(optionsButton());
-    fireEvent.click(screen.getByRole("menuitem", { name: "ProviderSidebarRestoreDefaultOrder" }));
-    expect(mocks.update).toHaveBeenCalledWith({ providersSortedAlphabetically: false });
-    await waitFor(() =>
-      expect(mocks.update).toHaveBeenLastCalledWith({ providersSortedAlphabetically: true }),
-    );
   });
 
   it("drives the main window surface only outside the detached window", () => {
@@ -411,7 +257,7 @@ describe("Settings deep links", () => {
     );
     rerender(<Settings state={state} initialTab="about" tabRequestId={2} />);
     expect(screen.getByTestId("tab").textContent).toBe("about");
-    expect(title()).toBe("TabAbout");
+    expect(title()).toBe("UpdatesTitle");
 
     rerender(<Settings state={state} initialTab="providers" tabRequestId={3} />);
     expect(screen.getByTestId("tab").textContent).toBe("providers:grok");
@@ -442,7 +288,7 @@ describe("Settings back and forward", () => {
 
   it("walks visited panes and providers", () => {
     render(<Settings state={state} />);
-    fireEvent.click(screen.getByRole("button", { name: "TabMenuBar" }));
+    fireEvent.click(screen.getByRole("button", { name: "UpdatesTitle" }));
     fireEvent.click(row("claude"));
     fireEvent.click(row("grok"));
 
@@ -450,17 +296,17 @@ describe("Settings back and forward", () => {
     expect(tab()).toBe("providers:claude");
     expect(row("claude")).toHaveAttribute("aria-selected", "true");
     fireEvent.click(back());
-    expect(tab()).toBe("menuBar");
+    expect(tab()).toBe("about");
     fireEvent.click(back());
-    expect(tab()).toBe("general:general");
+    expect(tab()).toBe("general:");
     expect(back()).toBeDisabled();
 
     fireEvent.click(forward());
-    expect(tab()).toBe("menuBar");
-    fireEvent.click(screen.getByRole("button", { name: "TabAbout" }));
+    expect(tab()).toBe("about");
+    fireEvent.click(row("zai"));
     expect(forward()).toBeDisabled();
     fireEvent.click(back());
-    expect(tab()).toBe("menuBar");
+    expect(tab()).toBe("about");
   });
 
   it("records a deep link as a visit", () => {
@@ -475,7 +321,7 @@ describe("Settings back and forward", () => {
   it("clears a search that would hide the provider it returns to", () => {
     render(<Settings state={state} />);
     fireEvent.click(row("cline"));
-    fireEvent.click(screen.getByRole("button", { name: "TabAbout" }));
+    fireEvent.click(screen.getByRole("button", { name: "UpdatesTitle" }));
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "zai" } });
     fireEvent.click(back());
     expect(screen.getByRole("searchbox")).toHaveValue("");
@@ -486,7 +332,7 @@ describe("Settings back and forward", () => {
     mocks.windowLabel = "main";
     render(<Settings state={state} />);
     fireEvent.click(row("claude"));
-    fireEvent.click(screen.getByRole("button", { name: "TabAbout" }));
+    fireEvent.click(screen.getByRole("button", { name: "UpdatesTitle" }));
     mocks.setSurfaceMode.mockClear();
     fireEvent.click(back());
     expect(mocks.setSurfaceMode).toHaveBeenCalledWith("settings", {

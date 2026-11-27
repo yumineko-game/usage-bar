@@ -2,33 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { BootstrapState, TrayPanelStyle } from "../types/bridge";
 import {
-  beginFlyoutGesture,
   dismissTrayPanel,
-  endFlyoutGesture,
-  getAppInfo,
-  getProviderDetail,
   getSystemAccentColor,
-  openProviderDashboard,
-  openProviderStatusPage,
   openSettingsWindow,
   quitApp as quitApplication,
-  reorderProviders,
 } from "../lib/tauri";
 import { useProviders } from "./useProviders";
-import { useProviderStatuses } from "./useProviderStatuses";
 import { useSettings } from "./useSettings";
 import { useUpdateState } from "./useUpdateState";
 import { useLocale } from "./useLocale";
-import { useNow } from "./useNow";
 import { useProviderSwitcherKeys } from "./useProviderSwitcherKeys";
 import { useSurfaceTarget } from "./useSurfaceMode";
 import { useTrayPanelLayout } from "./useTrayPanelLayout";
 import type { MenuFooterRow } from "../components/MenuSurface";
-import { accountMenuAction } from "../lib/accountMenuRow";
 import { orderProviderSnapshots } from "../lib/providerOrder";
 import { clampTrayPanelWidth, clampTrayScalePercent } from "../lib/trayScale";
-import { selectOverviewProviders } from "../lib/overviewProviders";
-import { serviceStatusLine } from "../lib/serviceStatus";
 import {
   hydrateProviderSlots,
   orderedEnabledProviderSlots,
@@ -36,27 +24,20 @@ import {
 
 const TRAY_INITIAL_REFRESH_DELAY_MS = 250;
 const DENSE_OVERVIEW_THRESHOLD = 32;
-
-interface ProviderLinks {
-  providerId: string;
-  dashboard: boolean;
-  statusPage: boolean;
-}
+const TRAY_CONTROLS_HEIGHT = 104;
+const TRAY_CARD_HEIGHT = 75;
+const TRAY_CARD_HEIGHT_BY_PROVIDER: Readonly<Record<string, number>> = {
+  antigravity: 125,
+  codex: 105,
+};
 
 /**
  * Controller for the tray flyout surface — state, memos, effects, and
  * handlers. JSX stays in `TrayPanel`.
  */
 export function useTrayPanelController(state: BootstrapState) {
-  const { settings, update } = useSettings(state.settings);
-  // Dragging a panel edge previews a width before it is saved; the saved width
-  // takes over again as soon as settings change.
-  const savedWidth = clampTrayPanelWidth(settings.trayPanelWidth);
-  const [dragWidth, setDragWidth] = useState<number | null>(null);
-  useEffect(() => {
-    setDragWidth(null);
-  }, [savedWidth]);
-  const panelWidth = dragWidth ?? savedWidth;
+  const { settings } = useSettings(state.settings);
+  const panelWidth = clampTrayPanelWidth(settings.trayPanelWidth);
   const {
     providers,
     isRefreshing,
@@ -76,20 +57,6 @@ export function useTrayPanelController(state: BootstrapState) {
 
   const trayScale = clampTrayScalePercent(settings.trayScalePercent) / 100;
   const panelStyle: TrayPanelStyle = settings.trayPanelStyle === "classic" ? "classic" : "modern";
-
-  const [appVersion, setAppVersion] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void getAppInfo().then(
-      (info) => {
-        if (!cancelled) setAppVersion(info.version);
-      },
-      () => {},
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const [accentColor, setAccentColor] = useState<string | null>(null);
   useEffect(() => {
@@ -168,8 +135,7 @@ export function useTrayPanelController(state: BootstrapState) {
       if (sorted.length + 1 > DENSE_OVERVIEW_THRESHOLD && !gridExpanded) {
         return denseTrayProviders.slice(0, 4);
       }
-      // Settings > Menu Bar > Overview providers: the chosen ones, else the first six.
-      return selectOverviewProviders(sorted, settings.mergedOverviewSelectedProviders ?? []);
+      return sorted;
     }
     // Detail: show ONLY the selected provider (macOS behavior — no appended errors)
     const match = sorted.find((p) => p.providerId === selectedProviderId);
@@ -182,57 +148,14 @@ export function useTrayPanelController(state: BootstrapState) {
     sorted,
     selectedProviderId,
     gridExpanded,
-    settings.mergedOverviewSelectedProviders,
   ]);
-
-  const actionProvider =
-    selectedProviderId !== null
-      ? (providersById.get(selectedProviderId) ?? null)
-      : sorted.length === 1
-        ? sorted[0]
-        : null;
-  const actionProviderId = actionProvider?.providerId ?? null;
-  const [providerLinks, setProviderLinks] = useState<ProviderLinks | null>(null);
-  useEffect(() => {
-    if (actionProviderId === null) return;
-    let cancelled = false;
-    void getProviderDetail(actionProviderId)
-      .then(
-        (detail) => ({
-          dashboard: Boolean(detail.dashboardUrl),
-          statusPage: Boolean(detail.statusPageUrl),
-        }),
-        () => ({ dashboard: false, statusPage: false }),
-      )
-      .then((links) => {
-        if (!cancelled) setProviderLinks({ providerId: actionProviderId, ...links });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [actionProviderId]);
-  const serviceStatuses = useProviderStatuses();
-  // Re-read the clock so "updated N ago" status text keeps advancing.
-  const nowMs = useNow();
-  // macOS `MenuDescriptor.statusLine`: the selected provider, else the first
-  // enabled one, whether or not it has a usage snapshot yet.
-  const statusLine = serviceStatusLine(
-    serviceStatuses,
-    selectedProviderId ?? denseProviderSlots[0]?.id ?? null,
-    t,
-    nowMs,
-  );
-  const links =
-    providerLinks !== null && providerLinks.providerId === actionProviderId
-      ? providerLinks
-      : null;
 
   const openSettings = useCallback(() => {
     void openSettingsWindow("general").finally(() => {
       void getCurrentWindow().close();
     });
   }, []);
-  const openAbout = useCallback(() => {
+  const openUpdates = useCallback(() => {
     void openSettingsWindow("about").finally(() => {
       void getCurrentWindow().close();
     });
@@ -241,50 +164,18 @@ export function useTrayPanelController(state: BootstrapState) {
     void quitApplication();
   }, []);
 
-  const actionRows: MenuFooterRow[] = [];
-  const accountAction = accountMenuAction(actionProvider);
-  if (accountAction !== null) {
-    const { settingsTab } = accountAction;
-    actionRows.push({
-      id: "switchAccount",
-      label: t(accountAction.labelKey),
-      onClick: () => void openSettingsWindow(settingsTab).catch(() => {}),
-    });
-  }
-  if (links?.dashboard) {
-    const { providerId } = links;
-    actionRows.push({
-      id: "dashboard",
-      label: t("TrayMenuUsageDashboard"),
-      onClick: () => void openProviderDashboard(providerId).catch(() => {}),
-    });
-  }
-  if (links?.statusPage) {
-    const { providerId } = links;
-    actionRows.push({
-      id: "statusPage",
-      label: t("TrayMenuStatusPage"),
-      onClick: () => void openProviderStatusPage(providerId).catch(() => {}),
-    });
-  }
   const footerGroups: MenuFooterRow[][] = [
-    actionRows,
     [
       { id: "refresh", label: t("ActionRefresh"), shortcut: "Ctrl+R", onClick: refresh },
       { id: "settings", label: t("MenuSettings"), shortcut: "Ctrl+,", onClick: openSettings },
       {
         id: "about",
-        // The classic menu names the version; the modern one is text-only.
-        label:
-          panelStyle === "classic" && appVersion
-            ? t("MenuAboutVersion").replace("{}", appVersion)
-            : t("MenuAbout"),
-        onClick: openAbout,
+        label: t("UpdatesTitle"),
+        onClick: openUpdates,
       },
       { id: "quit", label: t("MenuQuit"), shortcut: "Ctrl+Q", onClick: quitApp },
     ],
   ];
-  const actionRowIds = actionRows.map((row) => row.id).join(",");
 
   const layoutKey = useMemo(
     () =>
@@ -298,8 +189,6 @@ export function useTrayPanelController(state: BootstrapState) {
         expectsDenseOverview ? "dense" : "normal",
         hasLoadedCache ? "cache-ready" : "cache-pending",
         visibleProviders.map((provider) => provider.providerId).join(","),
-        actionRowIds,
-        statusLine ?? "",
         trayScale,
       ].join("|"),
     [
@@ -312,17 +201,24 @@ export function useTrayPanelController(state: BootstrapState) {
       expectsDenseOverview,
       hasLoadedCache,
       visibleProviders,
-      actionRowIds,
-      statusLine,
       trayScale,
     ],
   );
 
+  const heightSlots = selectedProviderId !== null
+    ? [selectedProviderId]
+    : (expectsDenseOverview ? denseProviderSlots.slice(0, 4) : denseProviderSlots)
+        .map((provider) => provider.id);
+  const cardsHeight = heightSlots.reduce(
+    (height, id) => height + (TRAY_CARD_HEIGHT_BY_PROVIDER[id] ?? TRAY_CARD_HEIGHT),
+    0,
+  );
   const { layoutReady } = useTrayPanelLayout({
     canMeasure: hasLoadedCache || sorted.length > 0,
     layoutKey,
     zoom: trayScale,
     baseWidth: panelWidth,
+    fixedHeight: TRAY_CONTROLS_HEIGHT + Math.max(TRAY_CARD_HEIGHT, cardsHeight),
   });
 
   // Keyboard shortcuts
@@ -373,26 +269,7 @@ export function useTrayPanelController(state: BootstrapState) {
     providerIds: gridProviderIds,
     selectedProviderId,
     onSelect: handleGridClick,
-    shortcuts: settings.switcherShortcuts,
   });
-  const handleReorder = useCallback((orderedIds: string[]) => {
-    void reorderProviders(orderedIds).catch(() => {});
-  }, []);
-  const handleGestureStart = useCallback(() => {
-    void beginFlyoutGesture().catch(() => {});
-  }, []);
-  const handleGestureEnd = useCallback(() => {
-    void endFlyoutGesture().catch(() => {});
-  }, []);
-
-  const handleResize = useCallback((width: number) => setDragWidth(width), []);
-  const handleResizeEnd = useCallback(
-    (width: number) => {
-      void update({ trayPanelWidth: width }).catch(() => {});
-    },
-    [update],
-  );
-
   const revealClassName = `tray-panel-reveal${layoutReady ? " tray-panel-reveal--ready" : ""}`;
 
   return {
@@ -400,10 +277,6 @@ export function useTrayPanelController(state: BootstrapState) {
     settings,
     panelStyle,
     panelWidth,
-    handleResizeStart: handleGestureStart,
-    handleResize,
-    handleResizeEnd,
-    handleResizeGestureEnd: handleGestureEnd,
     isRefreshing,
     refreshingProviderIds,
     refresh,
@@ -418,7 +291,6 @@ export function useTrayPanelController(state: BootstrapState) {
     visibleProviders,
     layoutReady,
     footerGroups,
-    statusLine,
     updateState,
     checkNow,
     download,
@@ -427,9 +299,6 @@ export function useTrayPanelController(state: BootstrapState) {
     openRelease,
     openSettings,
     handleGridClick,
-    handleReorder,
-    handleGestureStart,
-    handleGestureEnd,
     revealClassName,
   };
 }

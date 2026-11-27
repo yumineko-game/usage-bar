@@ -20,21 +20,30 @@
 }
 
 [data-theme="dark"] .menu-surface--tray {
-  --mac-panel-fill: linear-gradient(160deg, #252b36, #1c2028);
+  --mac-panel-fill: linear-gradient(160deg, #2b2b2b, #202020);
   --mac-panel-highlight: none;
-  --mac-panel-border: #474f5d;
+  --mac-panel-border: #505050;
   --mac-text: #f2f4f8;
   --mac-text-2: #b8c1d0;
   --mac-text-3: #98a4b6;
-  --mac-track: #272e3a;
-  --mac-divider: #4c5668;
-  --mac-separator: #3c4553;
+  --mac-track: #2e2e2e;
+  --mac-divider: #555;
+  --mac-separator: #444;
   --mac-error: #ff8f85;
   --surface-tint-rgb: 255, 255, 255;
-  --gauge-fill-base: #344256;
+  --gauge-fill-base: #414141;
   --gauge-text: #fff;
   --gauge-pace: #b2d2ff;
   --gauge-deficit: #ffc3aa;
+}
+
+.menu-surface--tray {
+  height: var(--tray-fixed-height, auto);
+}
+
+.menu-surface--tray .menu-surface__body {
+  flex: 1 1 auto;
+  overflow-y: auto;
 }
 
 [data-theme="dark"] .menu-surface--tray .provider-grid__item .provider-icon {
@@ -220,9 +229,17 @@
 }
 
 /* ── Rate-window rows (`MenuCardMetricRow`) ── */
+.menu-surface--tray .menu-metric__inventory {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
 .menu-surface--tray .menu-metric--tray {
   display: grid;
-  grid-template-columns: clamp(46px, 17%, 96px) minmax(48px, 1fr) clamp(62px, 23%, 118px);
+  grid-template-columns: clamp(88px, 27%, 140px) minmax(48px, 1fr) clamp(56px, 22%, 118px);
   align-items: center;
   min-height: 18px;
   gap: 0 7px;
@@ -232,9 +249,8 @@
   min-width: 0;
   font: 500 11px/15px var(--mac-font);
   color: var(--mac-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .menu-surface--tray .menu-metric__reset,
@@ -264,6 +280,7 @@
   height: 18px;
   box-sizing: border-box;
   border: 1px solid var(--mac-divider);
+  border-radius: 0;
   background: var(--mac-track);
   color: var(--gauge-text, #151925);
 }
@@ -286,11 +303,17 @@
   background: var(--gauge-deficit, #9d3926);
 }
 
+.menu-surface--tray .menu-metric__gauge-pace[data-unavailable="true"] {
+  background: none;
+  border-inline-start: 1px dashed currentColor;
+  opacity: 0.65;
+}
+
 .menu-surface--tray .menu-metric__gauge-value {
   position: relative;
   font: 650 11px/1 var(--mac-font);
   font-variant-numeric: tabular-nums;
-  text-shadow: -1px 0 var(--gauge-fill-base, #f2f4fc), 1px 0 var(--gauge-fill-base, #f2f4fc);
+  text-shadow: none;
   pointer-events: none;
 }
 

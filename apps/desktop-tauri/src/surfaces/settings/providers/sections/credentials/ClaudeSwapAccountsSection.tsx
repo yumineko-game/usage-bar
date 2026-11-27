@@ -1,3 +1,4 @@
+import type { SessionEquivalentForecastSnapshot } from "../../../../../types/bridge";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import type {
@@ -19,7 +20,6 @@ import {
   useClaudeReconciliation,
 } from "../../../../../hooks/useClaudeReconciliation";
 import { useCurrency } from "../../../../../hooks/CurrencyProvider";
-import { formatSessionEquivalentEstimate } from "../UsageDetailsSection";
 
 interface Props {
   t: (key: LocaleKey) => string;
@@ -148,6 +148,21 @@ function languageLocale(language: Language): string {
     turkish: "tr-TR",
     ukrainian: "uk-UA",
   }[language];
+}
+
+function formatSessionEquivalentEstimate(
+  forecast: SessionEquivalentForecastSnapshot | null | undefined,
+): string | null {
+  if (!forecast) return null;
+  const raw = forecast.estimatedWindowsToExhaustWeekly;
+  if (!Number.isFinite(raw)) return null;
+  const rounded = Math.round(Math.min(Math.max(raw, 0), 1_000_000) * 10) / 10;
+  const display =
+    Number.isInteger(rounded) || Math.abs(rounded - Math.round(rounded)) < 1e-9
+      ? String(Math.round(rounded))
+      : rounded.toFixed(1);
+  const unit = rounded > 0 && rounded <= 1 ? "session quota" : "session quotas";
+  return `Estimated: ${display} ${unit} left`;
 }
 
 /**

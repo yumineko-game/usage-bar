@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use codexbar::core::{
@@ -247,38 +247,6 @@ fn auto_resume_scheduled_at(
         .unwrap_or(now)
 }
 
-fn local_usage_provider_ids(settings: &Settings) -> Vec<String> {
-    // "Track costs" off: no background local cost-log scan.
-    if !settings.cost_usage_enabled {
-        return Vec::new();
-    }
-    settings
-        .get_enabled_provider_ids()
-        .into_iter()
-        .map(|provider| provider.cli_name().to_string())
-        .filter(|provider_id| matches!(provider_id.as_str(), "codex" | "claude" | "pi" | "muse"))
-        .collect()
-}
-
-pub(crate) fn schedule_refresh_enrichment(settings: &Settings) {
-    // Unknown-model pricing is shared by Usage & Spend, not just the optional
-    // PowerToys status pipe. Refresh it even when that integration is disabled.
-    let provider_ids = local_usage_provider_ids(settings);
-    if provider_ids.is_empty() {
-        return;
-    }
-    static ENRICHMENT: OnceLock<Arc<tokio::sync::Mutex<()>>> = OnceLock::new();
-    let Ok(guard) = Arc::clone(ENRICHMENT.get_or_init(|| Arc::new(tokio::sync::Mutex::new(()))))
-        .try_lock_owned()
-    else {
-        return;
-    };
-    tauri::async_runtime::spawn(async move {
-        let _guard = guard;
-        crate::commands::refresh_provider_local_usage_cache(provider_ids).await;
-    });
-}
-
 fn refresh_interval(seconds: u64) -> Option<Duration> {
     (seconds > 0).then(|| Duration::from_secs(seconds))
 }
@@ -456,57 +424,6 @@ mod tests {
             auto_resume_scheduled_at(Some((old_interval, prior_tick)), now, new_interval),
             now
         );
-    }
-
-    #[test]
-    fn local_usage_refresh_includes_codex_without_powertoys() {
-        let settings = Settings {
-            powertoys_status_pipe_enabled: false,
-            enabled_providers: [
-                "codex".to_string(),
-                "muse".to_string(),
-                "cursor".to_string(),
-            ]
-            .into_iter()
-            .collect(),
-            ..Default::default()
-        };
-
-        assert_eq!(local_usage_provider_ids(&settings), vec!["codex", "muse"]);
-        assert!(!settings.powertoys_status_pipe_enabled);
-    }
-
-    #[test]
-    fn local_usage_refresh_only_includes_supported_enabled_providers() {
-        for pipe_enabled in [false, true] {
-            let mut settings = Settings {
-                powertoys_status_pipe_enabled: pipe_enabled,
-                enabled_providers: ["claude".to_string(), "cursor".to_string()]
-                    .into_iter()
-                    .collect(),
-                ..Default::default()
-            };
-
-            assert_eq!(local_usage_provider_ids(&settings), vec!["claude"]);
-
-            settings.enabled_providers = ["cursor".to_string()].into_iter().collect();
-            assert!(local_usage_provider_ids(&settings).is_empty());
-
-            settings.enabled_providers.clear();
-            assert!(local_usage_provider_ids(&settings).is_empty());
-        }
-    }
-
-    #[test]
-    fn local_usage_refresh_skips_every_provider_when_cost_tracking_is_off() {
-        let settings = Settings {
-            cost_usage_enabled: false,
-            enabled_providers: ["codex".to_string(), "claude".to_string()]
-                .into_iter()
-                .collect(),
-            ..Default::default()
-        };
-        assert!(local_usage_provider_ids(&settings).is_empty());
     }
 
     #[test]

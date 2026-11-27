@@ -17,14 +17,14 @@ import {
 } from "./settingsTabs";
 
 describe("isSettingsTab", () => {
-  it.each(["general", "providers", "notifications", "menuBar", "menu", "usageSpend", "advanced", "hooks", "about"])(
+  it.each(["general", "providers", "about"])(
     "returns true for a known tab id (%s)",
     (id) => {
       expect(isSettingsTab(id)).toBe(true);
     },
   );
 
-  it.each(["", "General", "usage", "providers ", "unknown", "dashboard"])(
+  it.each(["", "General", "usage", "providers ", "unknown", "dashboard", "notifications", "menuBar", "menu", "usageSpend", "advanced", "hooks"])(
     "returns false for an unknown value (%s)",
     (id) => {
       expect(isSettingsTab(id)).toBe(false);
@@ -50,12 +50,6 @@ describe("TAB_META", () => {
     const expected: SettingsTabId[] = [
       "general",
       "providers",
-      "notifications",
-      "menuBar",
-      "menu",
-      "usageSpend",
-      "advanced",
-      "hooks",
       "about",
     ];
     expect(declared).toEqual(new Set(expected));
@@ -114,15 +108,9 @@ describe("providersTabRequest", () => {
 });
 
 describe("SIDEBAR_PANES", () => {
-  it("lists the app panes in the macOS order with their chip colors", () => {
+  it("lists the app panes with their chip colors", () => {
     expect(SIDEBAR_PANES.map((pane) => [pane.id, pane.chip])).toEqual([
       ["general", "gray"],
-      ["usageSpend", "green"],
-      ["notifications", "red"],
-      ["menuBar", "blue"],
-      ["menu", "teal"],
-      ["advanced", "purple"],
-      ["hooks", "orange"],
       ["about", null],
     ]);
   });

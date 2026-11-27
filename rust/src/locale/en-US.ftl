@@ -245,6 +245,7 @@ PaceOnPace = On pace
 PaceInReserve = { "{}" }% in reserve
 PaceInDeficit = { "{}" }% in deficit
 PaceLastsUntilReset = Lasts until reset
+PaceForecastUnavailable = Usage forecast unavailable
 PaceDailyTargetPercent = ≈ { "{}" }% / day to last until reset
 PaceDailyTargetCredits = ≈ { "{}" } credits / day to last until reset
 PaceDailyTargetRequests = ≈ { "{}" } requests / day to last until reset

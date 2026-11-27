@@ -70,18 +70,17 @@ if ($install.ExitCode -notin @(0, 3010)) {
 }
 
 $desktopExe = Join-Path $InstallDir "codexbar.exe"
-$cliExe = Join-Path $InstallDir "codexbar-cli.exe"
 $legacyDesktopExe = Join-Path $InstallDir "codexbar-desktop.exe"
 $icon = Join-Path $InstallDir "icon.ico"
 Assert-Path -Path $desktopExe -Label "installed desktop executable"
-Assert-Path -Path $cliExe -Label "installed CLI executable"
+if (Test-Path -LiteralPath (Join-Path $InstallDir "codexbar-cli.exe")) {
+    throw "Installer left the retired CLI executable in the application directory."
+}
 Assert-Path -Path $legacyDesktopExe -Label "installed desktop compatibility executable"
 Assert-Path -Path $icon -Label "icon"
 
 $desktopHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $desktopExe).Hash.ToLowerInvariant()
 Write-Step "installed codexbar.exe sha256: $desktopHash"
-$cliHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $cliExe).Hash.ToLowerInvariant()
-Write-Step "installed codexbar-cli.exe sha256: $cliHash"
 $legacyDesktopHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $legacyDesktopExe).Hash.ToLowerInvariant()
 Write-Step "installed codexbar-desktop.exe sha256: $legacyDesktopHash"
 
@@ -91,29 +90,7 @@ if (-not (Test-Path -LiteralPath $verifyExecutablesScript)) {
 }
 & $verifyExecutablesScript `
     -DesktopExe $desktopExe `
-    -CliExe $cliExe `
-    -LegacyDesktopExe $legacyDesktopExe `
-    -CheckCliStdout
-
-if ($ExpectedVersion) {
-    $versionOutput = (& $cliExe --version) -join "`n"
-    if ($LASTEXITCODE -ne 0) {
-        throw "codexbar-cli.exe --version exited with $LASTEXITCODE"
-    }
-    if ($versionOutput -notmatch [regex]::Escape($ExpectedVersion)) {
-        throw "Expected codexbar-cli.exe --version to mention $ExpectedVersion, got: $versionOutput"
-    }
-    Write-Step "CLI version output: $versionOutput"
-}
-
-$helpOutput = (& $cliExe --help) -join "`n"
-if ($LASTEXITCODE -ne 0) {
-    throw "codexbar-cli.exe --help exited with $LASTEXITCODE"
-}
-if ($helpOutput -notmatch "Usage:" -or $helpOutput -notmatch "diagnose") {
-    throw "codexbar-cli.exe --help did not print CLI help."
-}
-Write-Step "CLI help output: ok"
+    -LegacyDesktopExe $legacyDesktopExe
 
 $uninstallKeys = @(
     "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\WinCodexBar_is1",
