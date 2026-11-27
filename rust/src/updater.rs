@@ -35,6 +35,7 @@ pub enum UpdateDelivery {
 pub struct UpdateInfo {
     pub version: String,
     pub download_url: String,
+    asset_id: Option<u64>,
     pub expected_sha256: Option<String>,
     pub release_url: String,
     pub release_notes: String,
@@ -47,7 +48,9 @@ impl UpdateInfo {
     }
 
     pub fn supports_auto_download(&self) -> bool {
-        self.delivery == UpdateDelivery::Installer && self.expected_sha256.is_some()
+        self.delivery == UpdateDelivery::Installer
+            && self.asset_id.is_some()
+            && self.expected_sha256.is_some()
     }
 }
 
@@ -63,6 +66,7 @@ struct GitHubRelease {
 
 #[derive(Debug, Deserialize)]
 struct GitHubAsset {
+    id: u64,
     name: String,
     browser_download_url: String,
     #[serde(default)]
@@ -88,6 +92,9 @@ pub async fn check_for_updates_with_channel(channel: UpdateChannel) -> Option<Up
 pub async fn try_check_for_updates(channel: UpdateChannel) -> Result<Option<UpdateInfo>, String> {
     let response = update_http_client()?
         .get(release_url(channel))
+        .bearer_auth(github_token().await?)
+        .header(reqwest::header::ACCEPT, "application/vnd.github+json")
+        .timeout(std::time::Duration::from_secs(30))
         .send()
         .await
         .map_err(|e| format!("Failed to check GitHub for updates: {e}"))?;
@@ -116,8 +123,10 @@ async fn parse_release_response(
     channel: UpdateChannel,
 ) -> Result<Option<GitHubRelease>, String> {
     let status = response.status();
-    if status == reqwest::StatusCode::NOT_FOUND && matches!(channel, UpdateChannel::Stable) {
-        return Ok(None);
+    if status == reqwest::StatusCode::NOT_FOUND {
+        return Err(format!(
+            "No release found in {GITHUB_REPO}. Check repository access with gh auth status --hostname github.com."
+        ));
     }
     if !status.is_success() {
         return Err(format!("GitHub update check returned {status}"));
@@ -182,6 +191,7 @@ fn select_release_target(release: &GitHubRelease) -> UpdateInfo {
     UpdateInfo {
         version: release.tag_name.clone(),
         download_url,
+        asset_id: installer.map(|asset| asset.id),
         expected_sha256,
         release_url: release.html_url.clone(),
         release_notes: release.body.clone().unwrap_or_default(),
@@ -242,7 +252,10 @@ pub async fn download_update(
     validate_auto_download(update_info)?;
 
     let file_path = prepare_download_path(update_info)?;
-    let response = start_download(&update_info.download_url).await?;
+    let asset_id = update_info
+        .asset_id
+        .ok_or_else(|| "Missing GitHub release asset ID".to_string())?;
+    let response = start_download(asset_id).await?;
     write_download_response(response, &file_path, &progress_tx).await?;
     verify_download_hash(&file_path, expected_update_sha256(update_info)?).await?;
 
@@ -292,9 +305,37 @@ fn update_http_client() -> Result<reqwest::Client, String> {
         .map_err(|e| format!("Failed to create HTTP client: {}", e))
 }
 
-async fn start_download(download_url: &str) -> Result<reqwest::Response, String> {
+async fn github_token() -> Result<String, String> {
+    let mut command = tokio::process::Command::new("gh");
+    command
+        .args(["auth", "token", "--hostname", "github.com"])
+        .env_remove("GH_TOKEN")
+        .env_remove("GITHUB_TOKEN")
+        .stdin(std::process::Stdio::null())
+        .kill_on_drop(true);
+    #[cfg(windows)]
+    command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+
+    let output = tokio::time::timeout(std::time::Duration::from_secs(15), command.output())
+        .await
+        .map_err(|_| "GitHub CLI authentication timed out".to_string())?
+        .map_err(|e| format!("Could not run GitHub CLI (gh): {e}"))?;
+    let token = std::str::from_utf8(&output.stdout)
+        .unwrap_or_default()
+        .trim();
+    if !output.status.success() || token.is_empty() {
+        return Err("Run gh auth login --hostname github.com to enable updates".to_string());
+    }
+    Ok(token.to_owned())
+}
+
+async fn start_download(asset_id: u64) -> Result<reqwest::Response, String> {
     let response = update_http_client()?
-        .get(download_url)
+        .get(format!(
+            "https://api.github.com/repos/{GITHUB_REPO}/releases/assets/{asset_id}"
+        ))
+        .bearer_auth(github_token().await?)
+        .header(reqwest::header::ACCEPT, "application/octet-stream")
         .timeout(std::time::Duration::from_secs(300))
         .send()
         .await
@@ -611,11 +652,13 @@ mod tests {
             body: None,
             assets: vec![
                 GitHubAsset {
+                    id: 41,
                     name: "codexbar.exe".to_string(),
                     browser_download_url: "https://example.com/codexbar.exe".to_string(),
                     digest: None,
                 },
                 GitHubAsset {
+                    id: 42,
                     name: "CodexBar-1.2.6-Setup.exe".to_string(),
                     browser_download_url: "https://github.com/yumineko-game/usage-bar/releases/download/v1.2.6/CodexBar-1.2.6-Setup.exe"
                         .to_string(),
@@ -645,6 +688,7 @@ mod tests {
             html_url: "https://github.com/yumineko-game/usage-bar/releases/tag/v1.2.6".to_string(),
             body: None,
             assets: vec![GitHubAsset {
+                id: 42,
                 name: "codexbar.exe".to_string(),
                 browser_download_url: "https://example.com/codexbar.exe".to_string(),
                 digest: None,
@@ -670,6 +714,7 @@ mod tests {
             html_url: format!("{base}/tag/v1.2.6"),
             body: None,
             assets: vec![GitHubAsset {
+                id: 42,
                 name: name.to_string(),
                 browser_download_url: format!("{base}/download/v1.2.6/{name}"),
                 digest: None,

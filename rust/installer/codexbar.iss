@@ -22,7 +22,6 @@ AppVersion={#AppVersion}
 AppVerName={#MyAppName} {#AppVersion}
 AppPublisher=CodexBar Contributors
 AppPublisherURL=https://github.com/yumineko-game/usage-bar
-AppSupportURL=https://github.com/nesszer/Win-CodexBar/issues
 AppUpdatesURL=https://github.com/yumineko-game/usage-bar/releases
 DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
@@ -44,11 +43,14 @@ ArchitecturesInstallIn64BitMode=x64compatible
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 
+[InstallDelete]
+Type: files; Name: "{app}\codexbar-cli.exe"
+
 [Files]
 Source: "{#TargetBinDir}\codexbar.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#TargetBinDir}\codexbar-cli.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#TargetBinDir}\codexbar-desktop.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\icons\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\apps\desktop-tauri\src\generated\third-party-notices.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#WebView2BootstrapperPath}"; Flags: dontcopy
 
 [Icons]

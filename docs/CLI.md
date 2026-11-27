@@ -6,16 +6,16 @@ This page covers the Windows port. The upstream macOS install paths (`/Applicati
 
 ## Build and run the CLI
 
-Run these from the repo root:
+Run these from the repo root in Git Bash.
 
-```powershell
+```bash
 cargo build -p codexbar --release
 cargo run -p codexbar -- --help
 ```
 
 The build writes `target\release\codexbar.exe`. If `CARGO_TARGET_DIR` is set, the exe is under that folder instead.
 
-The installer and release ZIP name the CLI `codexbar-cli.exe`. The installed `codexbar.exe` is the desktop app. See [BUILDING.md](./BUILDING.md) for the release names. There is no "Install CLI" button like on macOS, so put the exe on `PATH` yourself.
+For CLI use alongside the desktop installation, copy the executable you built to a directory on `PATH` as `codexbar-cli.exe`.
 
 `codexbar` with no subcommand prints a hint and exits with code 64. Always pass a subcommand.
 
@@ -244,8 +244,6 @@ codexbar serve --port 8080
 
 `serve` binds to `127.0.0.1:8080` by default. A non-loopback `--host` needs a dashboard token and `--allow-plain-http`, because the token then crosses the network over cleartext HTTP. Set the token in `CODEXBAR_DASHBOARD_TOKEN` rather than on the command line.
 
-The desktop app can run the same server for you from Settings > Advanced > HTTP server, without a console window. See [CONFIGURATION.md](./CONFIGURATION.md#advanced).
-
 | Route | What it returns |
 | --- | --- |
 | `/` | The dashboard page. |
@@ -325,7 +323,6 @@ What the metrics export:
 
 The metrics leave out unknown, informational, non-finite and dynamic additional-limit values. They never guess a value or use a sentinel. They don't expose account identity, display labels, source names, free-form provider errors or version strings. Alert on provider health, snapshot age and quota values together.
 
-[Prometheus examples](prometheus/README.zh-CN.md) has a Grafana dashboard, scrape settings and alert rules (in Chinese).
 
 ## Write a dashboard snapshot once
 
@@ -368,7 +365,7 @@ codexbar config validate
 | `clear-credential` | Removes the stored API key and manual cookie for a provider. `--api-key` or `--cookie` narrows it to one. Enablement, cookie and usage sources, and token accounts stay as they are, so Manual stays selected after a cookie is cleared. Nothing is written when nothing was stored. |
 | `login` | Signs in to GitHub Copilot with GitHub's device-code flow, or to Grok and Kiro through their own CLIs. Other providers are rejected. See [Sign in from the CLI](#sign-in-from-the-cli). |
 | `path` | Shows the configuration file paths. |
-| `preferences export`, `preferences import` | Exports or imports portable preferences. See [CONFIGURATION.md](./CONFIGURATION.md#portable-preferences). |
+| `preferences export`, `preferences import` | Exports or imports portable preferences. |
 | `claude-code-credentials` | `allow`, `deny` or `status`. |
 
 `enable`, `disable`, `set-source`, `set-api-key`, `set-cookie` and `clear-credential` take the provider as a positional name or with `-p`/`--provider`. `usage -p <id>` is a one-off choice and doesn't change the enabled list.
@@ -502,7 +499,7 @@ codexbar hooks watch --provider codex --json
 codexbar hooks watch --provider both
 ```
 
-Hook rules live in `hooks.json` next to `settings.json`. `hooks enable` and `hooks disable` flip its master switch. The desktop Settings > Hooks pane edits the same file. See [CONFIGURATION.md](./CONFIGURATION.md#hooks).
+Hook rules live in `hooks.json` next to `settings.json`. `hooks enable` and `hooks disable` flip its master switch.
 
 `hooks test` runs the matching rules for a sample event. The events are `quota_low`, `quota_reached`, `quota_reset`, `usage_updated`, `provider_unavailable`, `provider_recovered` and `refresh_failed`.
 
@@ -562,7 +559,6 @@ codexbar autostart --disable
 
 Don't copy upstream CLI docs without checking:
 
-- There is no Swift CLI product called `CodexBarCLI`. The release ZIP is named `CodexBarCLI-v<version>-windows-x64.zip`, but it holds `codexbar-cli.exe`.
 - There are no macOS Keychain cookie cache flags.
 - There is no Homebrew or Linux tarball install path for Windows.
 - Card and claude-swap behavior from upstream may be missing or different. Trust `codexbar <command> --help` on this binary.
@@ -571,4 +567,4 @@ Don't copy upstream CLI docs without checking:
 
 - [CONFIGURATION.md](./CONFIGURATION.md)
 - [PROVIDERS.md](./PROVIDERS.md)
-- [BUILDING.md](./BUILDING.md)
+- [Build and release](../README.md#ビルドとリリース)

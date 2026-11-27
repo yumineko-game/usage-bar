@@ -65,10 +65,8 @@ nul
 .env
 .env.*
 /.local/
-# Docs children ignored generally; ADRs are product docs and stay trackable
+# Generated documentation outputs are ignored by default.
 /docs/*
-!/docs/prometheus/
-!/docs/grafana/
 !/docs/adr/
 /docs/adr/*
 !/docs/adr/*.md
@@ -92,7 +90,8 @@ nul
 !/scripts/vm/run_provider_proof_remote.sh
 !/scripts/vm/setup_syncthing_windows.ps1
 !/scripts/vm/windows_debug_relaunch.ps1
-version.env
+/version.env
+!/scripts/version.env
 .stfolder-win-codexbar/
 
 # VM proof artifacts (screenshots/captures from Windows VM sessions)

@@ -3,8 +3,7 @@
 //! This module is a Rust port of the Windows core of
 //! [`ademisler/codexcontrol`](https://github.com/ademisler/codexcontrol) (MIT),
 //! which manages multiple Codex accounts through isolated `CODEX_HOME`
-//! directories and switches the ambient Codex identity. See `NOTICE`/LICENSE
-//! for the upstream MIT attribution.
+//! directories and switches the ambient Codex identity.
 //!
 //! The model is deliberately mirror-shaped: a `CodexAccount` lives in either the
 //! ambient home (`~/.codex`) or an app-managed home (`managed-homes/<uuid>`),

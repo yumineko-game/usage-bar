@@ -116,7 +116,7 @@ if ($InnoSetup) { $InnoSetup = (Resolve-Path -LiteralPath $InnoSetup).Path }
 Push-Location $repoRoot
 try {
     $commit = Get-ReleaseCommit
-    $versionFile = Get-Content -Raw -LiteralPath 'version.env'
+    $versionFile = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'version.env')
     if ($versionFile -notmatch '(?m)^MARKETING_VERSION=((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\r?$') {
         throw 'version.env must contain a stable MARKETING_VERSION.'
     }
@@ -138,8 +138,7 @@ try {
     $installerName = "UsageBar-$version-Setup"
     $installer = Join-Path $outputDir "$installerName.exe"
     $portable = Join-Path $outputDir "UsageBar-$version-portable.exe"
-    $cli = Join-Path $outputDir "UsageBarCLI-v$version-windows-x64.zip"
-    $files = @($installer, $portable, $cli)
+    $files = @($installer, $portable)
     $complete = Join-Path $outputDir 'verified-assets'
     if (-not (Test-Path -LiteralPath $complete)) {
         $payload = Join-Path $outputDir 'payload'
@@ -166,19 +165,14 @@ try {
 
         $desktop = & (Join-Path $PSScriptRoot 'dev.ps1') -Release -BuildOnly
         if (-not $desktop) { throw 'The desktop build did not return an executable.' }
-        Invoke-ReleaseCommand 'cargo.exe' @('build', '--release', '--locked', '-p', 'codexbar', '--bin', 'codexbar')
-        $cliExe = Join-Path (Split-Path -Parent $desktop) 'codexbar.exe'
         Copy-Item -LiteralPath $desktop -Destination (Join-Path $payload 'codexbar.exe') -Force
         Copy-Item -LiteralPath $desktop -Destination (Join-Path $payload 'codexbar-desktop.exe') -Force
-        $cliPayload = Join-Path $payload 'codexbar-cli.exe'
-        Copy-Item -LiteralPath $cliExe -Destination $cliPayload -Force
         Invoke-ReleaseCommand $InnoSetup @(
             '/Qp', "/DAppVersion=$version", "/DTargetBinDir=$payload",
             "/DWebView2BootstrapperPath=$WebView2Bootstrapper", "/DOutputDir=$outputDir",
             "/DOutputBaseFilename=$installerName", 'rust\installer\codexbar.iss'
         )
         Copy-Item -LiteralPath $desktop -Destination $portable -Force
-        Compress-Archive -LiteralPath $cliPayload -DestinationPath $cli -Force
         foreach ($file in $files) {
             "$(Get-AssetSha256 $file)  $(Split-Path -Leaf $file)" | Set-Content -LiteralPath "$file.sha256" -Encoding ASCII
         }

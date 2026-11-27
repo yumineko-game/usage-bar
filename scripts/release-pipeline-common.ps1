@@ -1,101 +1,7 @@
 #Requires -Version 5.1
-<##
-Shared, side-effect-free helpers for the hosted Windows release pipeline.
-This file is dot-sourced by the preflight, manifest, publisher, and focused tests.
-#>
+# Shared helpers for hashing release assets and inspecting Windows executables.
 
 Set-StrictMode -Version Latest
-
-function Get-NodeMajor {
-    param([Parameter(Mandatory)][string]$Version)
-
-    if ($Version -notmatch '^v(\d+)\.') {
-        throw "Could not parse Node version '$Version'."
-    }
-    return [int]$Matches[1]
-}
-
-function Assert-NodeMajor {
-    param(
-        [Parameter(Mandatory)][string]$Version,
-        [Parameter(Mandatory)][int]$ExpectedMajor
-    )
-
-    $actualMajor = Get-NodeMajor $Version
-    if ($actualMajor -ne $ExpectedMajor) {
-        throw "Node $ExpectedMajor.x is required; found $Version."
-    }
-    return $actualMajor
-}
-
-function Get-NodeSemVersion {
-    param([Parameter(Mandatory)][string]$Version)
-
-    if ($Version -notmatch '^v?(\d+)\.(\d+)\.(\d+)') {
-        throw "Could not parse Node version '$Version'."
-    }
-    return [version]::new([int]$Matches[1], [int]$Matches[2], [int]$Matches[3])
-}
-
-function Test-NodeVersionAtLeast {
-    param(
-        [Parameter(Mandatory)][string]$Version,
-        [Parameter(Mandatory)][string]$Minimum
-    )
-
-    return (Get-NodeSemVersion $Version) -ge (Get-NodeSemVersion $Minimum)
-}
-
-function Assert-NodeVersionAtLeast {
-    param(
-        [Parameter(Mandatory)][string]$Version,
-        [Parameter(Mandatory)][string]$Minimum
-    )
-
-    if (-not (Test-NodeVersionAtLeast $Version $Minimum)) {
-        throw "Node $Minimum or newer is required; found $Version."
-    }
-}
-
-function Normalize-GitHubRepository {
-    param([Parameter(Mandatory)][string]$Url)
-
-    $value = $Url.Trim()
-    $value = $value -replace '^git@github\.com:', ''
-    $value = $value -replace '^ssh://git@github\.com/', ''
-    $value = $value -replace '^https?://github\.com/', ''
-    $value = $value.TrimEnd('/')
-    $value = $value -replace '\.git$', ''
-    return $value.ToLowerInvariant()
-}
-
-function Test-CanonicalReleaseTag {
-    param([AllowNull()][string]$Tag)
-
-    return -not [string]::IsNullOrWhiteSpace($Tag) -and $Tag -match '^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$'
-}
-
-function Get-ReleaseVersionFromTag {
-    param([Parameter(Mandatory)][string]$Tag)
-
-    if (-not (Test-CanonicalReleaseTag $Tag)) {
-        throw "Tag '$Tag' is not a canonical vX.Y.Z release tag."
-    }
-    return $Tag.Substring(1)
-}
-
-function Get-RequiredReleaseAssets {
-    param([Parameter(Mandatory)][string]$Version)
-
-    return @(
-        "CodexBar-$Version-Setup.exe",
-        "CodexBar-$Version-Setup.exe.sha256",
-        "CodexBar-$Version-portable.exe",
-        "CodexBar-$Version-portable.exe.sha256",
-        "CodexBarCLI-v$Version-windows-x64.zip",
-        "CodexBarCLI-v$Version-windows-x64.zip.sha256"
-    )
-}
 
 function Get-AssetSha256 {
     param([Parameter(Mandatory)][string]$Path)
@@ -128,20 +34,6 @@ function Assert-AssetMatchesSidecar {
     if ($actual -ne $expected) {
         throw "SHA-256 sidecar mismatch for $(Split-Path $AssetPath -Leaf): expected $expected, got $actual"
     }
-}
-
-function Get-ExpectedReleaseAssetPaths {
-    param([Parameter(Mandatory)][string]$AssetsDir, [Parameter(Mandatory)][string]$Version)
-
-    return @(
-        Get-RequiredReleaseAssets $Version | ForEach-Object { Join-Path $AssetsDir $_ }
-    )
-}
-
-function ConvertTo-JsonString {
-    param([Parameter(Mandatory)]$Value)
-
-    return ($Value | ConvertTo-Json -Depth 8)
 }
 
 # Import-table DLL names of a PE file, read directly so the check needs no

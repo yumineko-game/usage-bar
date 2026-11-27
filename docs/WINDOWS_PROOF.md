@@ -30,15 +30,15 @@ Unit tests and `scripts/local-check.ps1` don't prove tray, Settings, float bar, 
 | `popOut` | The tray panel flyout window, the same window a tray left-click opens |
 | `hidden` | Nothing |
 | `settings` | Settings on the General pane |
-| `settings:<tab>` | Settings on one pane, for example `settings:menuBar` |
+| `settings:<tab>` | Settings on one pane, for example `settings:about` |
 | `settings:providers:<cli_name>` | Settings on one provider, for example `settings:providers:codex` |
 
-The tab ids are `general`, `providers`, `notifications`, `menuBar`, `menu`, `usageSpend`, `advanced`, `hooks` and `about`. They are case-sensitive. The provider part must be the exact `cli_name`.
+The tab ids are `general`, `providers` and `about`. They are case-sensitive. The provider part must be the exact `cli_name`.
 
 The app logs a warning and starts normally when the value is wrong. That includes an unknown surface, an unknown tab, a payload on `trayPanel`, `hidden` or `popOut` (for example `popOut:codex`), and `floatbar`, which is not a proof surface.
 
 ```powershell
-$env:CODEXBAR_PROOF_MODE = 'settings:menu'
+$env:CODEXBAR_PROOF_MODE = 'settings:general'
 ```
 
 ### Seed usage data
@@ -111,10 +111,6 @@ The document holds `generation` (1 for the first write in a process, then +1 per
     { "id": "status_claude", "text": "Claude 60% session", "kind": "item", "enabled": false, "checked": null, "children": [] },
     { "id": null, "text": "", "kind": "separator", "enabled": true, "checked": null, "children": [] },
     { "id": "refresh", "text": "Refresh all", "kind": "item", "enabled": true, "checked": null, "children": [] },
-    { "id": "toggle_float_bar", "text": "Show Float Bar", "kind": "check", "enabled": true, "checked": false, "children": [] },
-    { "id": "providers", "text": "Providers", "kind": "submenu", "enabled": true, "checked": null, "children": [
-      { "id": "toggle_provider:codex", "text": "Codex", "kind": "check", "enabled": true, "checked": true, "children": [] }
-    ] }
   ]
 }
 ```
@@ -122,10 +118,10 @@ The document holds `generation` (1 for the first write in a process, then +1 per
 `proof_activate_tray_item` runs the handler a native click on a row would run. Call it through the Tauri bridge from a CDP session attached to a UsageBar page target (found by URL, never the first target):
 
 ```js
-await window.__TAURI_INTERNALS__.invoke('proof_activate_tray_item', { id: 'toggle_float_bar' });
+await window.__TAURI_INTERNALS__.invoke('proof_activate_tray_item', { id: 'settings' });
 ```
 
-- It fails with an error unless proof mode is active and `id` is an enabled row of the menu now on the tray that maps to a menu action. Status rows (`status_*`), disabled rows, unknown ids and rows the current menu doesn't show (such as `toggle_provider:<id>` for a provider missing from the menu) are refused. The error doesn't echo the id.
+- It fails with an error unless proof mode is active and `id` is an enabled row of the menu now on the tray that maps to a menu action. Status rows (`status_*`), disabled rows, unknown ids and rows the current menu doesn't show are refused. The error doesn't echo the id.
 - The check and the handler run on the main thread, after any menu install queued before the call. Nothing on screen opens or takes focus unless the action itself opens a window.
 - Some actions write to the running profile. A provider toggle saves `settings.json`, and Quit exits the app. Use an isolated `APPDATA` home for proof runs.
 - Rows that change a setting show the new state once the menu is rebuilt. The call returns when the handler's synchronous part is done, and some rebuilds and all account actions run after that, so the dump can still show the old state right after the call. Poll for a higher `generation` before you read the state.
@@ -161,7 +157,6 @@ Read `http://127.0.0.1:<port>/json/list` and attach to the window's own page tar
 | Hidden main window (and `trayPanel` proof) | `main` | `http://tauri.localhost/` |
 | Tray panel flyout | `flyout` | `http://tauri.localhost/index.html?window=flyout` |
 | Settings | `settings` | `http://tauri.localhost/index.html?window=settings&tab=<tab>` |
-| Float bar | `floatbar` | `http://tauri.localhost/index.html?window=floatbar&orientation=<orientation>` |
 
 Don't attach to the first target in the list by default. Tools that do that, or that open `about:blank` (for example browser-use), see a blank page.
 
@@ -198,7 +193,7 @@ Install the build, start **UsageBar**, and walk through this list.
 
 1. **Tray icon.** The icon appears in the notification area. On first run you may need to turn it on under taskbar settings.
 2. **Left-click the tray icon.** The tray panel flyout opens near the tray, on the monitor that holds the taskbar.
-3. **Right-click the tray icon.** The native menu opens. From top to bottom it has the account submenus (Codex, Claude Code and Grok), the provider status rows, **Refresh All**, **Pop Out Dashboard**, **Show Float Bar**, **Providers**, **Settings...**, **Check for Updates**, **About UsageBar** and **Quit**.
+3. **Right-click the tray icon.** The native menu shows provider usage summaries, Refresh All, Settings, Check for Updates, Updates and Quit.
 4. **Settings.** Settings opens from the tray menu and from the gear in the tray panel. Every sidebar pane opens.
 5. **Theme.** In General, switch the theme between Automatic, Light and Dark. The open windows repaint. Automatic follows the Windows color mode.
 6. **Global shortcut.** In General > Keyboard, record a shortcut, for example `Ctrl+Shift+K`. The shortcut opens and closes the tray panel from any app.
@@ -208,16 +203,15 @@ Install the build, start **UsageBar**, and walk through this list.
 
 ## Build and release checks
 
-Run these from the repo root. [BUILDING.md](./BUILDING.md) explains each one.
+Run these from the repo root. The [README](../README.md#ビルドとリリース) lists the build prerequisites.
 
 ```powershell
-.\scripts\local-check.ps1 -Slice ci
+.\scripts\local-check.ps1 -All
 pnpm --dir apps/desktop-tauri run tauri:build
-.\scripts\windows-release-build.ps1 -Ref vX.Y.Z -SmokeInstall
-.\scripts\release-doctor.ps1 -Version X.Y.Z
+.\scripts\release-usagebar.ps1
 ```
 
-`tauri:build` makes no installer. The release builder makes the Inno Setup installer, the portable binary and the CLI zip.
+`tauri:build` makes no installer. The release script builds the Inno Setup installer and the portable executable from a clean commit.
 
 ## Known limits
 
@@ -229,10 +223,9 @@ pnpm --dir apps/desktop-tauri run tauri:build
 ## Checklist
 
 ```
-[ ] build.local-check-ci          .\scripts\local-check.ps1 -Slice ci
+[ ] build.local-check             .\scripts\local-check.ps1 -All
 [ ] build.tauri-build             pnpm --dir apps/desktop-tauri run tauri:build
-[ ] release.cached-build          .\scripts\windows-release-build.ps1 -Ref <tag> -SmokeInstall
-[ ] release.doctor                .\scripts\release-doctor.ps1 -Version <version>
+[ ] release.local-build           .\scripts\release-usagebar.ps1
 
 [ ] runtime.tray-icon-visible
 [ ] runtime.tray-left-click-opens-panel
@@ -271,7 +264,7 @@ URL parameters:
 
 | Param | Values | Default |
 | --- | --- | --- |
-| `window` | `main`, `settings`, `flyout`, `floatbar` | `main` |
+| `window` | `main`, `settings`, `flyout` | `main` |
 | `tab` | any settings tab id, or `providers:<id>` | `general` |
 | `fixture` | `default`, `two-codex-accounts`, `errors`, `empty`, `claude-plan-hidden`, `kpi-long-titles`, `codex-conversations`, `codex-conversations-private` | `default` |
 | `theme` | `dark`, `light`, `auto` (overrides the fixture) | fixture value |

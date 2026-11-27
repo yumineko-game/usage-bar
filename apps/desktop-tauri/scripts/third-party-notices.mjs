@@ -13,8 +13,6 @@
 //     `codexbar-desktop-tauri`; texts come from the local Cargo registry.
 //   pnpm licenses list --json --prod
 //     production frontend dependencies; texts come from node_modules.
-//   NOTICE (repo root)
-//     vendored code that carries its own notice.
 //   license-templates/ (standard texts)
 //     a component that publishes no license file gets the canonical text of
 //     each SPDX id it names (see third-party-notices-lib.mjs).
@@ -192,7 +190,38 @@ function collectNpm(components) {
 }
 
 function collectVendored(components) {
-  const textId = internText(readFileSync(join(repoRoot, "NOTICE"), "utf8"));
+  const textId = internText(`NOTICE
+
+This software includes portions derived from the
+["codexcontrol"](https://github.com/ademisler/codexcontrol) project (MIT),
+specifically the Windows multi-account Codex core ported to Rust under
+\`rust/src/codex_accounts/\`.
+
+The derived code retains the upstream copyright and license notice:
+
+    MIT License
+
+    Copyright (c) 2026 Adem Isler
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+The original project URL: https://github.com/ademisler/codexcontrol`);
   components.set("vendored:codexcontrol", {
     name: "codexcontrol",
     ecosystem: "vendored",

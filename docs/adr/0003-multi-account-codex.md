@@ -70,8 +70,7 @@ series only prepares for it.
 - Review cost stays bounded: each PR is a small, independently testable slice;
   rollback of any surface PR leaves the domain intact.
 - Transitional duplication is accepted: two code paths compute "current Codex
-  usage" until retirement. The `NOTICE` file carries the upstream
-  ademisler/codexcontrol MIT attribution.
+  usage" until retirement.
 - **Managed-home reuse over duplication** (added with the home-reuse fix):
   `materialize_as_managed` reuses a managed home that already holds
   credentials for the account instead of minting a fresh UUID home per
